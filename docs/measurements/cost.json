@@ -1,0 +1,7 @@
+{
+  "judge": "mock (token counts as Jev would bill them)",
+  "tokens_before": 174711,
+  "jev_input_tokens": 37570,
+  "jev_cost_usd": 0.001578,
+  "price_per_m_input": 0.042
+}
