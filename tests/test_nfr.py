@@ -46,9 +46,10 @@ async def test_tc_p1_p95_under_1s_with_jev_latency():
     p95_scoring, p95_total = _p95(scoring), _p95(total)
     MEASURE_DIR.mkdir(parents=True, exist_ok=True)
     (MEASURE_DIR / "tc_p1_latency.json").write_text(json.dumps({
-        "judge": "mock (latency 70-500 ms uniform)", "runs": len(scoring), "candidate_tokens": 32_000,
-        "p95_scoring_ms": round(p95_scoring, 1), "p95_total_ms": round(p95_total, 1),
-        "scoring_ms": scoring, "total_ms": total}, indent=2))
+        "source": "mock", "judge": "mock (latency 70-500 ms uniform)",
+        "summarizer": "mock (no summarizer time)", "runs": len(scoring), "candidate_tokens": 32_000,
+        "p95_scoring_ms": round(p95_scoring, 1), "p95_prune_check_ms": round(p95_total, 1),
+        "scoring_ms": scoring, "prune_check_ms": total}, indent=2))
     assert p95_scoring < 1000
 
 
@@ -63,7 +64,7 @@ async def test_cost_per_compaction_under_002():
     assert res.tokens_before > 170_000
     MEASURE_DIR.mkdir(parents=True, exist_ok=True)
     (MEASURE_DIR / "cost.json").write_text(json.dumps({
-        "judge": "mock (token counts as Jev would bill them)", "tokens_before": res.tokens_before,
+        "source": "mock", "judge": "mock (tiktoken counts, not Jev-billed usage)", "tokens_before": res.tokens_before,
         "jev_input_tokens": res.jev_input_tokens, "jev_cost_usd": res.jev_cost_usd,
         "price_per_m_input": 0.042}, indent=2))
     assert res.jev_cost_usd <= 0.002

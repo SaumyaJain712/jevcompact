@@ -45,7 +45,7 @@ def test_defaults_from_spec():
     assert (c.budget, c.keep_threshold, c.drop_threshold, c.check_threshold, c.min_savings) == \
         (120_000, 0.5, 0.1, 0.5, 0.10)
     assert (c.jev_max_request_tokens, c.jev_requests_per_s, c.jev_tokens_per_s) == (32_000, 80, 100_000)
-    assert c.cut_chars == 400 and c.cf_model == "@cf/meta/llama-3.1-8b-instruct"
+    assert c.cut_chars == 400 and c.cf_model == "@cf/meta/llama-3.1-8b-instruct-fp8"
 
 
 async def test_summary_cache_by_content_hash(tmp_path):

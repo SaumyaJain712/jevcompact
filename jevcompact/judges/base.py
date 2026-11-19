@@ -10,9 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol, runtime_checkable
 
-# Both questions are yes/no statements asked as Jev `noul` questions.
-KEEP_QUESTION = "Tool output [{qid}] is still needed to finish the task."
-SOURCE_QUESTION = 'This summary line is supported by the tool outputs: "{line}"'
+# Both are yes/no questions sent as Jev `noul` questions (field `instructions`);
+# the returned `noul` value is the score.
+KEEP_QUESTION = "Is tool output [{qid}] still needed to finish the task?"
+SOURCE_QUESTION = 'Is this summary line supported by the tool outputs? Line: "{line}"'
 
 
 @dataclass(frozen=True)

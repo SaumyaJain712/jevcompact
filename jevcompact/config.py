@@ -65,7 +65,9 @@ class CompactionConfig(BaseModel):
     jev_model: str = "jev-latest"
     cf_account_id: str | None = Field(None, repr=False)
     cf_api_token: str | None = Field(None, repr=False)
-    cf_model: str = "@cf/meta/llama-3.1-8b-instruct"
+    # The spec default @cf/meta/llama-3.1-8b-instruct was deprecated by Cloudflare
+    # on 2026-05-30, so the default is the fp8 variant (see PROGRESS.md).
+    cf_model: str = "@cf/meta/llama-3.1-8b-instruct-fp8"
 
     @model_validator(mode="after")
     def _apply_preset_and_validate(self) -> "CompactionConfig":
@@ -96,6 +98,8 @@ class CompactionConfig(BaseModel):
         }
         if env.get("JEV_BASE_URL"):
             values["jev_base_url"] = env["JEV_BASE_URL"]
+        if env.get("JEV_MODEL"):
+            values["jev_model"] = env["JEV_MODEL"]
         if env.get("CF_MODEL"):
             values["cf_model"] = env["CF_MODEL"]
         values.update(overrides)

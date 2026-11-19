@@ -1,5 +1,6 @@
 {
-  "judge": "mock (token counts as Jev would bill them)",
+  "source": "mock",
+  "judge": "mock (tiktoken counts, not Jev-billed usage)",
   "tokens_before": 174711,
   "jev_input_tokens": 37570,
   "jev_cost_usd": 0.001578,
