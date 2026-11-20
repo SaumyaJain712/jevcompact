@@ -221,9 +221,6 @@ def test_compare_with_summary(client):
     assert len(summary_rows) == 1 and summary_rows[0]["before"] is None
     assert summary_rows[0]["after"]["text"].startswith("[JevCompact summary of")
     assert any(x["marker"] == "Summarized" and x["after"] is None for x in c["rows"])
-    folded = next(d for d in client.get(f"/api/runs/{r['id']}/decisions").json() if d["summarized"])
-    if folded["action"] in ("Dropped", "Cut"):  # folded items can't go back in place
-        assert client.post(f"/api/runs/{r['id']}/items/{folded['item_id']}/restore").status_code == 409
     assert sum(r["after"]["tokens"] for r in c["rows"] if r["after"]) == c["tokens_after"]
 
 
@@ -308,3 +305,51 @@ def test_openapi_docs(client):
               "/api/runs/{run_id}/compare", "/api/runs/{run_id}/export.json", "/api/runs/{run_id}/report.csv",
               "/api/settings", "/api/settings/test/jev", "/api/settings/test/cloudflare"]:
         assert p in paths, p
+
+
+@pytest.mark.parametrize("fmt", ["openai", "anthropic"])
+def test_restore_folded_item_reinserts_turn_after_summary(client, fmt):
+    """Items folded into the summary come back verbatim as a tool call + result pair."""
+    msgs = build([Step(f"cat src/m{i}.ts", "\n".join(f"line {j} of m{i}" for j in range(300))) for i in range(20)], fmt)
+    s = upload(client, msgs, name=f"folded-{fmt}")
+    r = client.post(f"/api/sessions/{s['id']}/runs?wait=true", json={"budget": 3000}).json()
+    folded = [d for d in client.get(f"/api/runs/{r['id']}/decisions").json() if d["summarized"]]
+    assert len(folded) >= 2
+    early, late = folded[0], folded[1]
+
+    # restore the later turn first, then the earlier one: originals must end up in original order
+    v1 = client.post(f"/api/runs/{r['id']}/items/{late['item_id']}/restore")
+    assert v1.status_code == 201, v1.text
+    v2 = client.post(f"/api/runs/{v1.json()['id']}/items/{early['item_id']}/restore").json()
+    out = client.get(f"/api/runs/{v2['id']}/export.json").json()
+
+    sp = next(i for i, m in enumerate(out)
+              if (m["content"] if isinstance(m["content"], str) else m["content"][0].get("text", "")).startswith(
+                  "[JevCompact summary of"))
+    e, l = early["message_index"], late["message_index"]
+    expected = [msgs[e - 1], msgs[e], msgs[l - 1], msgs[l]]  # assistant call + tool result, twice
+    assert out[sp + 1: sp + 5] == expected
+    from jevcompact import parse_session, user_messages_lost
+
+    parse_session(out)
+    assert user_messages_lost(msgs, out) == 0
+    if fmt == "openai":
+        calls = {tc["id"] for m in out for tc in m.get("tool_calls") or []}
+        results = {m["tool_call_id"] for m in out if m["role"] == "tool"}
+    else:
+        calls = {b["id"] for m in out if isinstance(m["content"], list) for b in m["content"] if b["type"] == "tool_use"}
+        results = {b["tool_use_id"] for m in out if isinstance(m["content"], list)
+                   for b in m["content"] if b["type"] == "tool_result"}
+    assert calls == results
+
+    rows = {d["item_id"]: d for d in client.get(f"/api/runs/{v2['id']}/decisions").json()}
+    for d in (early, late):
+        assert rows[d["item_id"]]["restored"] and rows[d["item_id"]]["action"] == "Kept"
+        assert rows[d["item_id"]]["content_after"] == d["content"]
+        assert "from the summary" in rows[d["item_id"]]["reason"]
+    assert v2["tokens_after"] > r["tokens_after"]
+    c = client.get(f"/api/runs/{v2['id']}/compare").json()
+    assert sum(x["after"]["tokens"] for x in c["rows"] if x["after"]) == c["tokens_after"] == v2["tokens_after"]
+    assert sum(1 for x in c["rows"] if x["marker"] == "Restored") == 2
+    assert client.post(f"/api/runs/{v2['id']}/items/{early['item_id']}/restore").status_code == 409
+    assert client.post(f"/api/sessions/{s['id']}/undo").json()["current_run_id"] == v1.json()["id"]

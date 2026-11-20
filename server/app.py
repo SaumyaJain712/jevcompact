@@ -26,7 +26,7 @@ from jevcompact.summarizers.cloudflare import CloudflareSummarizer
 
 from .crypto import SecretBox, load_fernet
 from .db import Database
-from .runner import RunError, RunManager
+from .runner import SUMMARY_PREFIX, RunError, RunManager
 from .settings import RunParams, SettingsIn, SettingsStore
 
 log = logging.getLogger(__name__)
@@ -263,9 +263,10 @@ def create_app(db_path: str | Path | None = None, data_dir: str | Path | None = 
         out = json.loads(r["output_json"])
         index_map = json.loads(r["index_map_json"])
         session = parsed(sid)
-        decs = {d["message_index"]: [] for d in db.decisions(run_id)}
-        for d in db.decisions(run_id):
-            decs[d["message_index"]].append(d)
+        all_decs = db.decisions(run_id)
+        decs: dict[int, list[dict]] = {}
+        for d in all_decs:
+            decs.setdefault(d["message_index"], []).append(d)
 
         def describe(m: dict, i: int | None) -> dict:
             role = m["role"].upper()
@@ -278,21 +279,23 @@ def create_app(db_path: str | Path | None = None, data_dir: str | Path | None = 
                     tc.get("function", {}).get("name", "") for tc in m.get("tool_calls") or [])
             return {"role": role, "title": title}
 
-        rows, summary_shown = [], False
+        summary_pos = next((k for k, m in enumerate(out)
+                            if text_of(m.get("content")).startswith(SUMMARY_PREFIX)), None)
+        rows, summary_shown = [], summary_pos is None
         for i, m in enumerate(original):
             oi = index_map[i]
             marker = None
             ds = decs.get(i, [])
             if oi is None:
                 marker = "Summarized"
+            elif any(d["restored"] and d["summarized"] for d in ds):
+                marker = "Restored"
             elif any(d["action"] == "Dropped" for d in ds):
                 marker = "Dropped"
             elif any(d["action"] == "Cut" for d in ds):
                 marker = "Truncated"
-            if oi is None and not summary_shown and r["status"] != "Under budget":
-                # the summary message sits where the first summarized message was
-                prev = next((index_map[j] for j in range(i - 1, -1, -1) if index_map[j] is not None), -1)
-                sm = out[prev + 1]
+            if not summary_shown and (oi is None or oi > summary_pos):
+                sm = out[summary_pos]
                 rows.append({"before": None, "after": {"role": "SUMMARY", "title": "Summary of earlier steps",
                                                        "tokens": message_tokens(sm),
                                                        "text": text_of(sm.get("content"))}, "marker": "Summary"})
@@ -300,7 +303,6 @@ def create_app(db_path: str | Path | None = None, data_dir: str | Path | None = 
             after = None if oi is None else {**describe(out[oi], i), "tokens": message_tokens(out[oi])}
             rows.append({"before": {**describe(m, i), "tokens": before_tokens[i], "index": i},
                          "after": after, "marker": marker})
-        all_decs = db.decisions(run_id)
         return {
             "run_id": run_id, "session_id": sid, "status": r["status"],
             "tokens_before": r["tokens_before"], "tokens_after": r["tokens_after"],

@@ -55,7 +55,7 @@ Ticked only when the linked test passes. Phase in brackets.
 ## Notes / decisions
 - Phase (c): uploading a session runs compaction automatically with the saved settings (FR2), so every session has a status. `?auto_run=false` skips it.
 - Every run (and every restore) is a new version in `runs`; the uploaded `messages` rows are never modified. Undo/redo moves the session's `current_run_id` along the version history; starting a new run after an undo discards the redo branch (marked `superseded`).
-- A dropped item that was later folded into the summary can't be put back in place (API returns 409); its full text is still available via `/api/runs/{id}/recall/{item_id}`.
+- Restore works for every removed item ("anything removed can be put back in one click"): dropped/cut items get their full text back in place; items folded into the summary get their whole original turn (assistant tool call + tool results, a matching pair) re-inserted verbatim right after the summary message, in original order among restored turns. Each restore is a new version — `tests/test_api.py::test_restore_folded_item_reinserts_turn_after_summary` (OpenAI + Anthropic).
 - Fernet key source: `JEVCOMPACT_SECRET_KEY` env → OS keyring → (deviation) owner-only key file `.jevcompact/secret.key` when no keyring backend works, e.g. headless Linux. A warning is logged.
 - Provider choice in the server: `JUDGE`/`SUMMARIZER` env vars win; otherwise a real provider is used when its keys are saved in Settings.
 - Live tests (`pytest -m live`) have not run: no `.env` keys yet. Real measurements will be committed separately when keys are added.

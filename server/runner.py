@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import uuid
 from pathlib import Path
 
 from jevcompact import compact
-from jevcompact.formats import set_item_content, total_tokens
+from jevcompact.formats import (SUMMARY_HEADER, parse_session, set_item_content, text_of, total_tokens,
+                                user_messages_lost)
 from jevcompact.judges import JudgeError, build_judge
 from jevcompact.models import utcnow
 from jevcompact.pipeline import CompactionError
@@ -18,6 +20,7 @@ from .db import Database, DbRecallStore
 from .settings import RunParams, SettingsStore
 
 log = logging.getLogger(__name__)
+SUMMARY_PREFIX = SUMMARY_HEADER.split("{")[0]
 
 
 class RunError(Exception):
@@ -80,6 +83,13 @@ class RunManager:
 
     # --- versions ------------------------------------------------------------
     def restore(self, run_id: str, item_id: str) -> str:
+        """Put an item back verbatim as a new version.
+
+        Dropped / cut items get their full text back in place. Items folded
+        into the summary get their whole original turn (the assistant tool call
+        and its tool results, as a matching pair) re-inserted right after the
+        summary message; turns restored this way keep their original order.
+        """
         run = self.db.get_run(run_id)
         if not run or run["status"] not in ("Compacted", "Fell back", "Under budget"):
             raise RunError(404, "Run not found or not finished")
@@ -87,20 +97,22 @@ class RunManager:
         d = next((d for d in decisions if d["item_id"] == item_id), None)
         if d is None:
             raise RunError(404, "Item not found in this run")
-        if d["action"] not in ("Dropped", "Cut"):
-            raise RunError(409, f"Only dropped or cut items can be restored (this one is {d['action']})")
-        full = self.db.recall_get(item_id)
-        if full is None:
-            raise RunError(404, "No recall entry for this item")
         out = json.loads(run["output_json"])
         index_map = json.loads(run["index_map_json"])
-        oi = index_map[d["message_index"]]
-        if oi is None:
-            raise RunError(409, "This item was folded into the summary, so it can't be put back in place.")
-        set_item_content(out[oi], d["block_index"], full)
+        sid = run["session_id"]
+
+        if d["summarized"] and index_map[d["message_index"]] is None:
+            restored = self._reinsert_turn(sid, out, index_map, decisions, d)
+        elif d["action"] in ("Dropped", "Cut") and not d["restored"]:
+            full = self.db.recall_get(item_id)
+            if full is None:
+                raise RunError(404, "No recall entry for this item")
+            set_item_content(out[index_map[d["message_index"]]], d["block_index"], full)
+            restored = {d["item_index"]}
+        else:
+            raise RunError(409, f"Nothing to restore: this item is {d['action']} and still in the session")
 
         new_id = uuid.uuid4().hex[:12]
-        sid = run["session_id"]
         self.db.insert_run(new_id, sid, preset=run["preset"], keep=run["keep_threshold"], drop=run["drop_threshold"],
                            budget=run["budget"], judge=run["judge"], summarizer=run["summarizer"],
                            config=json.loads(run["config_json"] or "{}"), kind="restore", parent_run_id=run_id,
@@ -110,27 +122,52 @@ class RunManager:
             self.db.conn.execute(
                 "UPDATE runs SET jev_cost_usd=0, latency_ms=0, tokens_before=?, tokens_after=?, user_messages_lost=?, "
                 "fallback_reason=?, output_json=?, index_map_json=? WHERE id=?",
-                (run["tokens_before"], total_tokens(out), run["user_messages_lost"], run["fallback_reason"],
-                 json.dumps(out, ensure_ascii=False), run["index_map_json"], new_id))
+                (run["tokens_before"], total_tokens(out), user_messages_lost(self.db.get_messages(sid), out),
+                 run["fallback_reason"], json.dumps(out, ensure_ascii=False), json.dumps(index_map), new_id))
             for x in decisions:
-                restored = x["item_id"] == item_id or bool(x["restored"])
-                action = "Kept" if x["item_id"] == item_id else x["action"]
-                reason = (f"restored by user (was {x['action']}, score {x['score']:.2f})"
-                          if x["item_id"] == item_id else x["reason"])
-                tokens_after = x["tokens"] if x["item_id"] == item_id else x["tokens_after"]
+                hit = x["item_index"] in restored
+                score = "" if x["score"] is None else f", score {x['score']:.2f}"
+                where = " from the summary" if x["summarized"] else ""
                 self.db.conn.execute(
                     "INSERT INTO decisions (run_id, message_index, item_id, item_index, block_index, role, title, "
                     "score, action, reason, tokens, tokens_after, summarized, restored, created_at) "
                     "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (new_id, x["message_index"], x["item_id"], x["item_index"], x["block_index"], x["role"],
-                     x["title"], x["score"], action, reason, x["tokens"], tokens_after, x["summarized"],
-                     int(restored), now if x["item_id"] == item_id else x["created_at"]))
+                     x["title"], x["score"], "Kept" if hit else x["action"],
+                     f"restored by user{where} (was {x['action']}{score})" if hit else x["reason"],
+                     x["tokens"], x["tokens"] if hit else x["tokens_after"], x["summarized"],
+                     int(hit or bool(x["restored"])), now if hit else x["created_at"]))
             s = self.db.summary(run_id)
             if s:
                 self.db.conn.execute("INSERT INTO summaries VALUES (?,?,?,?,?)",
                                      (new_id, s["text"], s["lines_removed"], s["removed_lines_json"], s["checked"]))
         self.db.set_current(sid, new_id, supersede_after=True)
         return new_id
+
+    def _reinsert_turn(self, sid: str, out: list[dict], index_map: list[int | None], decisions: list[dict],
+                       d: dict) -> set[int]:
+        original = self.db.get_messages(sid)
+        session = parse_session(original)
+        group = session.groups[session.items[d["item_index"]].group]
+        summary_pos = next((i for i, m in enumerate(out)
+                            if text_of(m.get("content")).startswith(SUMMARY_PREFIX)), None)
+        if summary_pos is None:
+            raise RunError(409, "This version has no summary message to restore after")
+        # Turns already restored from the summary sit right after it, in original order.
+        reinserted = {mi for x in decisions if x["summarized"] and x["restored"]
+                      for mi in session.groups[session.items[x["item_index"]].group].msg_indices}
+        inverse = {oi: i for i, oi in enumerate(index_map) if oi is not None}
+        q = summary_pos + 1
+        while q < len(out) and inverse.get(q) in reinserted and inverse[q] < group.msg_indices[0]:
+            q += 1
+        block = [copy.deepcopy(original[i]) for i in group.msg_indices]
+        out[q:q] = block
+        for i, oi in enumerate(index_map):
+            if oi is not None and oi >= q:
+                index_map[i] = oi + len(block)
+        for k, mi in enumerate(group.msg_indices):
+            index_map[mi] = q + k
+        return set(group.items)
 
     def _move(self, session_id: str, step: int) -> str:
         sess = self.db.get_session(session_id)
