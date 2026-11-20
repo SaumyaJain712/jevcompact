@@ -14,3 +14,4 @@ dist/
 *.egg-info/
 dashboard/test-results/
 dashboard/playwright-report/
+*.tsbuildinfo
