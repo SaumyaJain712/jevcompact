@@ -1,0 +1,109 @@
+{
+  "session": "data-pipeline-test",
+  "format": "openai",
+  "task": "tests/test_pipeline.py::test_daily_rollup fails (expected 1204 events, got 1188). Find why events are lost in the daily rollup and fix it.",
+  "items": [
+    {
+      "tool_call_id": "call_data_00",
+      "command": "pytest -q",
+      "needed": true,
+      "reason": "The failing test: 16 events lost (1188 vs 1204)."
+    },
+    {
+      "tool_call_id": "call_data_01",
+      "command": "cat pipelines/rollup.py",
+      "needed": true,
+      "reason": "The function under test; shows dedupe runs before grouping."
+    },
+    {
+      "tool_call_id": "call_data_02",
+      "command": "cat pipelines/dedupe.py",
+      "needed": true,
+      "reason": "Contains the bug: the dedupe key floors ts to the minute."
+    },
+    {
+      "tool_call_id": "call_data_03",
+      "command": "ls -R pipelines data",
+      "needed": false,
+      "reason": "Listing; not needed."
+    },
+    {
+      "tool_call_id": "call_data_04",
+      "command": "pip freeze",
+      "needed": false,
+      "reason": "Installed packages; irrelevant."
+    },
+    {
+      "tool_call_id": "call_data_05",
+      "command": "cat pipelines/io.py",
+      "needed": false,
+      "reason": "Reading CSVs works; not part of the bug."
+    },
+    {
+      "tool_call_id": "call_data_06",
+      "command": "head -n 3000 tests/fixtures/events_2026-04-01.csv",
+      "needed": true,
+      "reason": "The fixture shows genuine events from one user in the same minute, which dedupe collapses."
+    },
+    {
+      "tool_call_id": "call_data_07",
+      "command": "cat logs/airflow/daily_rollup/2026-04-01.log",
+      "needed": false,
+      "reason": "Scheduler log noise; nothing about the bug."
+    },
+    {
+      "tool_call_id": "call_data_08",
+      "command": "cat pipelines/attribution.py",
+      "needed": false,
+      "reason": "Unrelated stage."
+    },
+    {
+      "tool_call_id": "call_data_09",
+      "command": "cat pipelines/funnels.py",
+      "needed": false,
+      "reason": "Unrelated stage."
+    },
+    {
+      "tool_call_id": "call_data_10",
+      "command": "git log -p -n 3 -- pipelines/dedupe.py",
+      "needed": true,
+      "reason": "Shows the recent change that introduced the bug (dedupe used to key on event_id)."
+    },
+    {
+      "tool_call_id": "call_data_11",
+      "command": "cat docs/pipeline.md",
+      "needed": false,
+      "reason": "General docs."
+    },
+    {
+      "tool_call_id": "call_data_12",
+      "command": "cat pipelines/quality.py",
+      "needed": false,
+      "reason": "Unrelated stage."
+    },
+    {
+      "tool_call_id": "call_data_13",
+      "command": "pytest tests/test_dedupe.py -q",
+      "needed": true,
+      "reason": "Dedupe unit tests still pass, so they need extending."
+    },
+    {
+      "tool_call_id": "call_data_14",
+      "command": "cat pipelines/exports.py",
+      "needed": false,
+      "reason": "Unrelated stage."
+    },
+    {
+      "tool_call_id": "call_data_15",
+      "command": "apply_patch pipelines/dedupe.py",
+      "needed": true,
+      "reason": "The fix that was applied."
+    },
+    {
+      "tool_call_id": "call_data_16",
+      "command": "pytest -q",
+      "needed": true,
+      "reason": "Proves the fix."
+    }
+  ]
+}

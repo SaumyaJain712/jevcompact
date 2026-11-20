@@ -1,0 +1,127 @@
+{
+  "session": "checkout-bugfix-0412",
+  "format": "openai",
+  "task": "The checkout total is wrong and `npm test` fails in src/cart.test.ts. Find and fix the bug in the cart total calculation (src/cart.ts) without changing its public API.",
+  "items": [
+    {
+      "tool_call_id": "call_chec_00",
+      "command": "ls",
+      "needed": false,
+      "reason": "Orientation only; the layout is not needed later."
+    },
+    {
+      "tool_call_id": "call_chec_01",
+      "command": "ls -la node_modules",
+      "needed": false,
+      "reason": "Installed packages; nothing in the task depends on them."
+    },
+    {
+      "tool_call_id": "call_chec_02",
+      "command": "cat package.json",
+      "needed": false,
+      "reason": "Only confirms the test command (`jest`), which was already run."
+    },
+    {
+      "tool_call_id": "call_chec_03",
+      "command": "cat package-lock.json",
+      "needed": false,
+      "reason": "Lockfile; irrelevant to a logic bug."
+    },
+    {
+      "tool_call_id": "call_chec_04",
+      "command": "npm test",
+      "needed": true,
+      "reason": "The failing test and the exact error location (cart.ts:88)."
+    },
+    {
+      "tool_call_id": "call_chec_05",
+      "command": "cat src/cart.ts",
+      "needed": true,
+      "reason": "The file that contains the bug and is edited."
+    },
+    {
+      "tool_call_id": "call_chec_06",
+      "command": "grep -rn price src/",
+      "needed": true,
+      "reason": "Shows every use of priceCents and that prices are integer cents."
+    },
+    {
+      "tool_call_id": "call_chec_07",
+      "command": "cat src/types/cart.ts",
+      "needed": true,
+      "reason": "Defines CartItem.priceCents (integer cents), needed for a correct fix."
+    },
+    {
+      "tool_call_id": "call_chec_08",
+      "command": "cat src/money.ts",
+      "needed": true,
+      "reason": "Provides ZERO and addMoney, which the fix uses."
+    },
+    {
+      "tool_call_id": "call_chec_09",
+      "command": "git log --oneline -n 400",
+      "needed": false,
+      "reason": "History; the bug is visible in the code itself."
+    },
+    {
+      "tool_call_id": "call_chec_10",
+      "command": "cat README.md",
+      "needed": false,
+      "reason": "General project readme."
+    },
+    {
+      "tool_call_id": "call_chec_11",
+      "command": "cat docs/architecture.md",
+      "needed": false,
+      "reason": "Architecture overview; not needed for this fix."
+    },
+    {
+      "tool_call_id": "call_chec_12",
+      "command": "cat src/checkout/checkout.ts",
+      "needed": false,
+      "reason": "Caller of cartTotal; the public API must stay the same, so its code is not needed."
+    },
+    {
+      "tool_call_id": "call_chec_13",
+      "command": "npm run lint",
+      "needed": false,
+      "reason": "Lint warnings unrelated to the bug."
+    },
+    {
+      "tool_call_id": "call_chec_14",
+      "command": "cat coverage/lcov.info",
+      "needed": false,
+      "reason": "Coverage data; not needed."
+    },
+    {
+      "tool_call_id": "call_chec_15",
+      "command": "cat src/legacy/pricing-v1.ts",
+      "needed": false,
+      "reason": "Legacy pricing module not used by cartTotal."
+    },
+    {
+      "tool_call_id": "call_chec_16",
+      "command": "cat CHANGELOG.md",
+      "needed": false,
+      "reason": "Release notes; not needed."
+    },
+    {
+      "tool_call_id": "call_chec_17",
+      "command": "cat src/cart.test.ts",
+      "needed": true,
+      "reason": "The expectations the fix must satisfy (free shipping, coupon, zero qty)."
+    },
+    {
+      "tool_call_id": "call_chec_18",
+      "command": "apply_patch src/cart.ts",
+      "needed": true,
+      "reason": "The change that was made; needed to report the fix."
+    },
+    {
+      "tool_call_id": "call_chec_19",
+      "command": "npm test",
+      "needed": true,
+      "reason": "Proves the fix works."
+    }
+  ]
+}

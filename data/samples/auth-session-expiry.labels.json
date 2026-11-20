@@ -1,0 +1,97 @@
+{
+  "session": "auth-session-expiry",
+  "format": "anthropic",
+  "task": "Users get logged out after 5 minutes instead of 24 hours. Find the cause and fix the session expiry.",
+  "items": [
+    {
+      "tool_call_id": "call_auth_00",
+      "command": "grep -rn \"maxAge\\|sessionTtl\" src config",
+      "needed": true,
+      "reason": "Locates every place the session lifetime is set."
+    },
+    {
+      "tool_call_id": "call_auth_01",
+      "command": "cat src/auth/session.ts",
+      "needed": true,
+      "reason": "The session middleware; maxAge is in milliseconds."
+    },
+    {
+      "tool_call_id": "call_auth_02",
+      "command": "cat config/default.json",
+      "needed": true,
+      "reason": "Contains the wrong value: 300000 ms = 5 minutes."
+    },
+    {
+      "tool_call_id": "call_auth_03",
+      "command": "cat node_modules/express-session/README.md",
+      "needed": false,
+      "reason": "Library readme; the needed fact (maxAge in ms) is already in session.ts."
+    },
+    {
+      "tool_call_id": "call_auth_04",
+      "command": "redis-cli --scan --pattern 'sess:*'",
+      "needed": false,
+      "reason": "List of session keys; not needed."
+    },
+    {
+      "tool_call_id": "call_auth_05",
+      "command": "kubectl logs deploy/web --since=1h",
+      "needed": true,
+      "reason": "Production log lines prove sessions expire after 300 s."
+    },
+    {
+      "tool_call_id": "call_auth_06",
+      "command": "cat src/routes/account.ts",
+      "needed": false,
+      "reason": "Unrelated routes."
+    },
+    {
+      "tool_call_id": "call_auth_07",
+      "command": "cat config/production.json",
+      "needed": true,
+      "reason": "Production also sets 300000; must be fixed too."
+    },
+    {
+      "tool_call_id": "call_auth_08",
+      "command": "cat docs/security.md",
+      "needed": false,
+      "reason": "General security docs."
+    },
+    {
+      "tool_call_id": "call_auth_09",
+      "command": "git log --oneline -n 300",
+      "needed": false,
+      "reason": "History; the config comment already explains the change."
+    },
+    {
+      "tool_call_id": "call_auth_10",
+      "command": "cat src/lib/redis.ts",
+      "needed": false,
+      "reason": "Redis client; not part of the bug."
+    },
+    {
+      "tool_call_id": "call_auth_11",
+      "command": "npm test -- auth",
+      "needed": true,
+      "reason": "The test that encodes the 24 h requirement."
+    },
+    {
+      "tool_call_id": "call_auth_12",
+      "command": "cat CHANGELOG.md",
+      "needed": false,
+      "reason": "Release notes."
+    },
+    {
+      "tool_call_id": "call_auth_13",
+      "command": "apply_patch config/default.json config/production.json",
+      "needed": true,
+      "reason": "The fix."
+    },
+    {
+      "tool_call_id": "call_auth_14",
+      "command": "npm test -- auth",
+      "needed": true,
+      "reason": "Proves the fix."
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "session": "api-refactor-long",
+  "format": "anthropic",
+  "task": "Move the REST handlers for orders and payments from src/api/v1 to src/api/v2 with typed responses (see src/api/v2/types.ts and openapi.yaml). Keep the v1 routes working through thin adapters.",
+  "items": [
+    {
+      "tool_call_id": "call_api-_00",
+      "command": "ls src/api/v1",
+      "needed": false,
+      "reason": "Directory listing; the two files in scope are named in the task."
+    },
+    {
+      "tool_call_id": "call_api-_01",
+      "command": "cat src/api/v1/orders.ts",
+      "needed": true,
+      "reason": "In scope: the orders handler being moved to v2."
+    },
+    {
+      "tool_call_id": "call_api-_02",
+      "command": "cat src/api/v1/payments.ts",
+      "needed": true,
+      "reason": "In scope: the payments handler being moved to v2."
+    },
+    {
+      "tool_call_id": "call_api-_03",
+      "command": "cat src/api/v1/users.ts",
+      "needed": false,
+      "reason": "Users are out of scope for this task."
+    },
+    {
+      "tool_call_id": "call_api-_04",
+      "command": "cat src/api/v1/search.ts",
+      "needed": false,
+      "reason": "Out of scope."
+    },
+    {
+      "tool_call_id": "call_api-_05",
+      "command": "cat openapi.yaml",
+      "needed": true,
+      "reason": "Defines the v2 response schemas the typed handlers must follow."
+    },
+    {
+      "tool_call_id": "call_api-_06",
+      "command": "cat src/api/v2/types.ts",
+      "needed": true,
+      "reason": "OrderDto, PaymentDto and the ok() envelope used by the new handlers."
+    },
+    {
+      "tool_call_id": "call_api-_07",
+      "command": "grep -rn \"Router()\" src/api",
+      "needed": true,
+      "reason": "Shows where routers are mounted, which the v1 adapters must keep working."
+    },
+    {
+      "tool_call_id": "call_api-_08",
+      "command": "npm ls --all",
+      "needed": false,
+      "reason": "Dependency tree; not needed."
+    },
+    {
+      "tool_call_id": "call_api-_09",
+      "command": "cat node_modules/@types/express-serve-static-core/index.d.ts",
+      "needed": false,
+      "reason": "Library typings; the needed Request/Response usage is already in the handlers."
+    },
+    {
+      "tool_call_id": "call_api-_10",
+      "command": "docker compose logs api --tail 3000",
+      "needed": false,
+      "reason": "Runtime logs; unrelated to the refactor."
+    },
+    {
+      "tool_call_id": "call_api-_11",
+      "command": "cat src/api/v1/inventory.ts",
+      "needed": false,
+      "reason": "Out of scope."
+    },
+    {
+      "tool_call_id": "call_api-_12",
+      "command": "cat src/api/v1/reviews.ts",
+      "needed": false,
+      "reason": "Out of scope."
+    },
+    {
+      "tool_call_id": "call_api-_13",
+      "command": "cat tests/api/orders.test.ts",
+      "needed": true,
+      "reason": "Tests for both v1 and v2 order responses; the refactor must pass them."
+    },
+    {
+      "tool_call_id": "call_api-_14",
+      "command": "cat src/api/v1/reports.ts",
+      "needed": false,
+      "reason": "Out of scope."
+    },
+    {
+      "tool_call_id": "call_api-_15",
+      "command": "cat src/api/v1/webhooks.ts",
+      "needed": false,
+      "reason": "Out of scope."
+    },
+    {
+      "tool_call_id": "call_api-_16",
+      "command": "cat docs/api-guidelines.md",
+      "needed": false,
+      "reason": "General guidelines; the concrete types are in types.ts and openapi.yaml."
+    },
+    {
+      "tool_call_id": "call_api-_17",
+      "command": "npx tsc --noEmit",
+      "needed": true,
+      "reason": "Type errors in the new v2 handlers that must be fixed."
+    },
+    {
+      "tool_call_id": "call_api-_18",
+      "command": "git diff --stat",
+      "needed": true,
+      "reason": "Summary of the changes made so far."
+    }
+  ]
+}

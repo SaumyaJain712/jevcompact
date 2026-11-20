@@ -1,0 +1,67 @@
+{
+  "session": "docs-migration",
+  "format": "anthropic",
+  "task": "Migrate the project documentation in docs/ from Sphinx (reStructuredText) to MkDocs.",
+  "items": [
+    {
+      "tool_call_id": "call_docs_00",
+      "command": "ls docs",
+      "needed": true,
+      "reason": "The list of pages to migrate."
+    },
+    {
+      "tool_call_id": "call_docs_01",
+      "command": "cat docs/conf.py",
+      "needed": true,
+      "reason": "Theme and extensions to map to MkDocs."
+    },
+    {
+      "tool_call_id": "call_docs_02",
+      "command": "cat docs/index.rst",
+      "needed": true,
+      "reason": "Page to convert."
+    },
+    {
+      "tool_call_id": "call_docs_03",
+      "command": "cat docs/install.rst",
+      "needed": true,
+      "reason": "Page to convert."
+    },
+    {
+      "tool_call_id": "call_docs_04",
+      "command": "cat docs/config.rst",
+      "needed": true,
+      "reason": "Page to convert."
+    },
+    {
+      "tool_call_id": "call_docs_05",
+      "command": "cat docs/api.rst",
+      "needed": true,
+      "reason": "Page to convert."
+    },
+    {
+      "tool_call_id": "call_docs_06",
+      "command": "pip show sphinx furo",
+      "needed": false,
+      "reason": "Versions don't affect the migration."
+    },
+    {
+      "tool_call_id": "call_docs_07",
+      "command": "cat docs/faq.rst",
+      "needed": true,
+      "reason": "Page to convert."
+    },
+    {
+      "tool_call_id": "call_docs_08",
+      "command": "cat mkdocs.yml",
+      "needed": true,
+      "reason": "The new MkDocs config written for the migration."
+    },
+    {
+      "tool_call_id": "call_docs_09",
+      "command": "mkdocs build --strict",
+      "needed": true,
+      "reason": "Confirms the migrated site builds."
+    }
+  ]
+}

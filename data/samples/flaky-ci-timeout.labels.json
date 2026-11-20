@@ -1,0 +1,91 @@
+{
+  "session": "flaky-ci-timeout",
+  "format": "openai",
+  "task": "The CI job e2e-tests times out intermittently. Find the root cause and make it reliable.",
+  "items": [
+    {
+      "tool_call_id": "call_flak_00",
+      "command": "gh run view 9182 --log-failed",
+      "needed": true,
+      "reason": "The failing CI log: connection refused at the start, then the job timeout."
+    },
+    {
+      "tool_call_id": "call_flak_01",
+      "command": "cat .github/workflows/ci.yml",
+      "needed": true,
+      "reason": "Starts the app in the background with no wait before tests."
+    },
+    {
+      "tool_call_id": "call_flak_02",
+      "command": "cat playwright.config.ts",
+      "needed": true,
+      "reason": "No webServer block, so tests do not wait for the app."
+    },
+    {
+      "tool_call_id": "call_flak_03",
+      "command": "ls node_modules",
+      "needed": false,
+      "reason": "Installed packages."
+    },
+    {
+      "tool_call_id": "call_flak_04",
+      "command": "cat package-lock.json",
+      "needed": false,
+      "reason": "Lockfile."
+    },
+    {
+      "tool_call_id": "call_flak_05",
+      "command": "cat tests/e2e/checkout.spec.ts",
+      "needed": true,
+      "reason": "The test that fails first; confirms it only fails on the first navigation."
+    },
+    {
+      "tool_call_id": "call_flak_06",
+      "command": "docker logs ci-postgres",
+      "needed": false,
+      "reason": "Database logs show nothing wrong."
+    },
+    {
+      "tool_call_id": "call_flak_07",
+      "command": "npm ls @playwright/test",
+      "needed": false,
+      "reason": "Version is fine."
+    },
+    {
+      "tool_call_id": "call_flak_08",
+      "command": "cat docs/testing.md",
+      "needed": false,
+      "reason": "General testing docs."
+    },
+    {
+      "tool_call_id": "call_flak_09",
+      "command": "cat src/server/start.ts",
+      "needed": false,
+      "reason": "App start-up is normal."
+    },
+    {
+      "tool_call_id": "call_flak_10",
+      "command": "git log --oneline -n 300 -- .github",
+      "needed": false,
+      "reason": "History."
+    },
+    {
+      "tool_call_id": "call_flak_11",
+      "command": "cat coverage/lcov.info",
+      "needed": false,
+      "reason": "Coverage data."
+    },
+    {
+      "tool_call_id": "call_flak_12",
+      "command": "apply_patch playwright.config.ts .github/workflows/ci.yml",
+      "needed": true,
+      "reason": "The fix."
+    },
+    {
+      "tool_call_id": "call_flak_13",
+      "command": "npx playwright test --repeat-each 5",
+      "needed": true,
+      "reason": "Proves the fix is reliable."
+    }
+  ]
+}
