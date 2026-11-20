@@ -353,3 +353,38 @@ def test_restore_folded_item_reinserts_turn_after_summary(client, fmt):
     assert sum(1 for x in c["rows"] if x["marker"] == "Restored") == 2
     assert client.post(f"/api/runs/{v2['id']}/items/{early['item_id']}/restore").status_code == 409
     assert client.post(f"/api/sessions/{s['id']}/undo").json()["current_run_id"] == v1.json()["id"]
+
+
+def test_undo_to_original_version_0(client):
+    """The uploaded session is version 0: Undo after the first run returns to it."""
+    s = upload(client)
+    d = client.get(f"/api/sessions/{s['id']}").json()
+    assert d["version"] == 1 and d["can_undo"] and not d["can_redo"]
+
+    assert client.post(f"/api/sessions/{s['id']}/undo").json() == {"current_run_id": None}
+    d = client.get(f"/api/sessions/{s['id']}").json()
+    assert d["status"] == "Original" and d["tokens_after"] == d["tokens_before"] and d["current_run"] is None
+    assert d["version"] == 0 and not d["can_undo"] and d["can_redo"]
+    assert client.post(f"/api/sessions/{s['id']}/undo").status_code == 409
+    assert next(r for r in client.get("/api/sessions").json() if r["id"] == s["id"])["status"] == "Original"
+    items = client.get(f"/api/sessions/{s['id']}/items").json()
+    assert len(items) == len(client.get(f"/api/runs/{s['run_id']}/decisions").json())
+    assert items[0]["role"] == "USER" and items[0]["content"].startswith("Fix the checkout")
+
+    assert client.post(f"/api/sessions/{s['id']}/redo").json()["current_run_id"] == s["run_id"]
+    assert client.get(f"/api/sessions/{s['id']}").json()["status"] == "Compacted"
+
+    # from the original, a new run discards every later version
+    client.post(f"/api/sessions/{s['id']}/undo")
+    new = client.post(f"/api/sessions/{s['id']}/runs?wait=true", json={"preset": "aggressive"}).json()
+    d = client.get(f"/api/sessions/{s['id']}").json()
+    assert d["current_run_id"] == new["id"] and d["version"] == 1 and d["can_undo"] and not d["can_redo"]
+    assert [r["superseded"] for r in d["runs"] if r["id"] == s["run_id"]] == [1]
+
+
+def test_undo_on_never_run_session(client):
+    r = client.post("/api/sessions?auto_run=false", json=checkout_session())
+    sid = r.json()["id"]
+    d = client.get(f"/api/sessions/{sid}").json()
+    assert d["status"] is None and not d["can_undo"] and not d["can_redo"]
+    assert client.post(f"/api/sessions/{sid}/undo").status_code == 409

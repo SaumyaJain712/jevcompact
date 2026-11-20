@@ -141,18 +141,27 @@ class Database:
         """Finished, non-superseded runs: the undo/redo timeline."""
         return [r for r in self.list_runs(sid) if r["status"] in FINISHED and not r["superseded"]]
 
-    def set_current(self, sid: str, run_id: str, supersede_after: bool) -> None:
-        """Point the session at run_id. A new version discards the redo branch."""
-        run = self.get_run(run_id)
+    def timeline(self, sid: str) -> list[str | None]:
+        """Undo/redo timeline: version 0 (None = the original upload) then finished runs."""
+        hist = [r["id"] for r in self.history(sid)]
+        return [None, *hist] if hist else []
+
+    def set_current(self, sid: str, run_id: str | None, supersede_after: bool) -> None:
+        """Point the session at a version (None = the original). A new version discards the redo branch."""
         with self.lock, self.conn:
             if supersede_after:
                 cur = self.one("SELECT current_run_id FROM sessions WHERE id = ?", (sid,))
                 cur_run = self.get_run(cur["current_run_id"]) if cur and cur["current_run_id"] else None
-                if cur_run:
-                    self.conn.execute("UPDATE runs SET superseded = 1 WHERE session_id = ? AND seq > ? AND id != ?",
-                                      (sid, cur_run["seq"], run_id))
-            self.conn.execute("UPDATE sessions SET current_run_id = ?, status = ?, tokens_after = ? WHERE id = ?",
-                              (run_id, run["status"], run["tokens_after"], sid))
+                cur_seq = cur_run["seq"] if cur_run else 0  # at version 0 every other run is "after"
+                self.conn.execute("UPDATE runs SET superseded = 1 WHERE session_id = ? AND seq > ? AND id != ?",
+                                  (sid, cur_seq, run_id))
+            if run_id is None:
+                self.conn.execute("UPDATE sessions SET current_run_id = NULL, status = 'Original', "
+                                  "tokens_after = tokens_before WHERE id = ?", (sid,))
+            else:
+                run = self.get_run(run_id)
+                self.conn.execute("UPDATE sessions SET current_run_id = ?, status = ?, tokens_after = ? WHERE id = ?",
+                                  (run_id, run["status"], run["tokens_after"], sid))
 
     # --- decisions / summaries / recall ----------------------------------------
     def decisions(self, run_id: str) -> list[dict]:

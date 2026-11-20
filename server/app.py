@@ -170,11 +170,18 @@ def create_app(db_path: str | Path | None = None, data_dir: str | Path | None = 
     @api.get("/sessions/{sid}")
     def get_session(sid: str):
         s = session_or_404(sid)
-        hist = [r["id"] for r in db.history(sid)]
+        timeline = db.timeline(sid)
         cur = s["current_run_id"]
-        i = hist.index(cur) if cur in hist else -1
+        i = timeline.index(cur) if cur in timeline else -1
         return {**s, "current_run": run_view(db.get_run(cur)) if cur else None, "runs": db.list_runs(sid),
-                "can_undo": i > 0, "can_redo": 0 <= i < len(hist) - 1}
+                "version": i, "can_undo": i > 0, "can_redo": 0 <= i < len(timeline) - 1}
+
+    @api.get("/sessions/{sid}/items")
+    def original_items(sid: str):
+        """Reviewable items of the original upload (version 0)."""
+        session_or_404(sid)
+        return [{"item_index": it.index, "message_index": it.msg_index, "role": it.role, "title": it.title,
+                 "tokens": it.tokens, "content": it.text} for it in parsed(sid).items]
 
     @api.delete("/sessions/{sid}", status_code=204)
     def delete_session(sid: str):

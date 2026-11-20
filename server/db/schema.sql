@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     message_count   INTEGER NOT NULL,
     tokens_before   INTEGER NOT NULL,
     tokens_after    INTEGER,
-    status          TEXT CHECK (status IN ('Compacted', 'Fell back', 'Under budget')),
+    -- 'Original' = undone back to version 0 (the uploaded session, uncompacted)
+    status          TEXT CHECK (status IN ('Compacted', 'Fell back', 'Under budget', 'Original')),
     current_run_id  TEXT,
     created_at      TEXT NOT NULL
 );

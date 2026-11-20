@@ -44,6 +44,23 @@ export default function ReviewPage() {
         setKeep(d.current_run.keep_threshold);
         setDrop(d.current_run.drop_threshold);
         setPreset(d.current_run.preset);
+      } else {
+        // version 0: the original upload, nothing compacted
+        const items = await api.items(id);
+        setDecisions(
+          items.map((it) => ({
+            ...it,
+            item_id: `original-${it.item_index}`,
+            score: null,
+            action: "Kept" as const,
+            reason: "Original session (version 0): nothing removed.",
+            tokens_after: it.tokens,
+            summarized: false,
+            restored: false,
+            content_after: it.content,
+            created_at: "",
+          })),
+        );
       }
     } catch (e) {
       setError(e instanceof ApiError && e.status === 404 ? "This session no longer exists." : String(e));
@@ -87,7 +104,7 @@ export default function ReviewPage() {
       const key = e.key.toLowerCase();
       if (key === "j") setSelected((s) => Math.min(s + 1, decisions.length - 1));
       else if (key === "k") setSelected((s) => Math.max(s - 1, 0));
-      else if (key === "r" && decisions[selected] && isRestorable(decisions[selected])) restore(decisions[selected]);
+      else if (key === "r" && run && decisions[selected] && isRestorable(decisions[selected])) restore(decisions[selected]);
       else if (key === "u" && detail?.can_undo) undo();
       else return;
       e.preventDefault();
@@ -151,9 +168,10 @@ export default function ReviewPage() {
     );
   }
   if (run && run.kind === "run" && notable) {
-    const acts: BannerAction[] = [];
-    if (detail?.can_undo) acts.push({ label: "Undo", onClick: undo });
-    acts.push({ label: "Restore one", onClick: () => restore(notable) });
+    const acts: BannerAction[] = [
+      { label: "Undo", onClick: undo },
+      { label: "Restore one", onClick: () => restore(notable) },
+    ];
     banners.push(
       <Banner key="drop" kind="info" label="Dropped" actions={acts}>
         {dropped.length} {dropped.length === 1 ? "item" : "items"} dropped. "{notable.title}" was among them.
@@ -173,10 +191,15 @@ export default function ReviewPage() {
   }
   if (!detail) return <PageHeader title="Session review" sub={busy ?? "Loading…"} />;
 
+  const original = !run && detail.version === 0;
   const headline = run ? (
     <span className="headline" data-testid="headline">
       {k(run.tokens_before)} → {k(run.tokens_after)} tokens ({Math.round(run.percent_saved ?? 0)}% smaller) · Jev cost{" "}
       {usd(run.jev_cost_usd)} · {seconds(run.latency_ms)}
+    </span>
+  ) : original ? (
+    <span className="headline" data-testid="headline">
+      {k(detail.tokens_before)} → {k(detail.tokens_before)} tokens (0% smaller) · original session, version 0
     </span>
   ) : (
     "Not compacted yet"
@@ -188,7 +211,7 @@ export default function ReviewPage() {
         title={detail.name}
         sub={
           <span className="row">
-            {headline} {run && <StatusChip status={run.status} />}
+            {headline} {run ? <StatusChip status={run.status} /> : original && <StatusChip status="Original" />}
           </span>
         }
         actions={
@@ -247,10 +270,16 @@ export default function ReviewPage() {
                   </div>
                   <div className="tokens">{n(d.tokens)} tok</div>
                   <div>
-                    <ActionChip action={d.action} score={d.score} />
+                    {run ? (
+                      <ActionChip action={d.action} score={d.score} />
+                    ) : (
+                      <span className="chip grey" data-testid="action-chip">
+                        Original
+                      </span>
+                    )}
                   </div>
                   <div>
-                    {isRestorable(d) && (
+                    {run && isRestorable(d) && (
                       <button
                         className="btn btn-small"
                         disabled={!!busy}

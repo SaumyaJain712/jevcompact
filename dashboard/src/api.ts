@@ -1,6 +1,6 @@
 // Typed client for the JevCompact FastAPI server (/api).
 
-export type Status = "Compacted" | "Fell back" | "Under budget";
+export type Status = "Compacted" | "Fell back" | "Under budget" | "Original";
 export type RunStatus = Status | "Running" | "Cancelled" | "Failed";
 export type Action = "Pinned" | "Kept" | "Cut" | "Dropped";
 export type Role = "USER" | "TOOL" | "ERROR";
@@ -57,6 +57,8 @@ export interface Run {
 export interface SessionDetail extends SessionRow {
   current_run: Run | null;
   runs: RunSummary[];
+  /** 0 = the original upload; 1.. = runs and restores */
+  version: number;
   can_undo: boolean;
   can_redo: boolean;
 }
@@ -77,6 +79,15 @@ export interface Decision {
   content: string;
   content_after: string | null;
   created_at: string;
+}
+
+export interface OriginalItem {
+  item_index: number;
+  message_index: number;
+  role: Role;
+  title: string;
+  tokens: number;
+  content: string;
 }
 
 export interface CompareCell {
@@ -169,12 +180,13 @@ export const api = {
   },
   session: (id: string) => req<SessionDetail>(`/sessions/${id}`),
   run: (id: string) => req<Run>(`/runs/${id}`),
+  items: (sid: string) => req<OriginalItem[]>(`/sessions/${sid}/items`),
   decisions: (runId: string) => req<Decision[]>(`/runs/${runId}/decisions`),
   startRun: (sid: string, params: { preset?: Preset; keep_threshold?: number; drop_threshold?: number }) =>
     req<Run>(`/sessions/${sid}/runs`, json(params)),
   restore: (runId: string, itemId: string) => req<Run>(`/runs/${runId}/items/${itemId}/restore`, { method: "POST" }),
-  undo: (sid: string) => req<{ current_run_id: string }>(`/sessions/${sid}/undo`, { method: "POST" }),
-  redo: (sid: string) => req<{ current_run_id: string }>(`/sessions/${sid}/redo`, { method: "POST" }),
+  undo: (sid: string) => req<{ current_run_id: string | null }>(`/sessions/${sid}/undo`, { method: "POST" }),
+  redo: (sid: string) => req<{ current_run_id: string | null }>(`/sessions/${sid}/redo`, { method: "POST" }),
   compare: (runId: string) => req<Compare>(`/runs/${runId}/compare`),
   settings: () => req<Settings>("/settings"),
   saveSettings: (s: Record<string, unknown>) => req<Settings>("/settings", { method: "PUT", body: JSON.stringify(s) }),

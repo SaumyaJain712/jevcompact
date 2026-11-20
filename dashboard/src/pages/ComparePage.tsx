@@ -80,7 +80,13 @@ export default function ComparePage() {
           {error}
         </Banner>
       )}
-      {detail && !detail.current_run && <div className="empty">This session has not been compacted yet.</div>}
+      {detail && !detail.current_run && (
+        <div className="card empty">
+          {detail.version === 0
+            ? "This is the original session (version 0), so there is nothing to compare. Use Redo or Re-run on the review screen."
+            : "This session has not been compacted yet."}
+        </div>
+      )}
       {cmp && (
         <>
           <div className="card summary-bar" data-testid="summary-bar">

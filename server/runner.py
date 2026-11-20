@@ -169,12 +169,12 @@ class RunManager:
             index_map[mi] = q + k
         return set(group.items)
 
-    def _move(self, session_id: str, step: int) -> str:
+    def _move(self, session_id: str, step: int) -> str | None:
+        """Move along [original, run 1, run 2, ...]. Returns the new current run id (None = original)."""
         sess = self.db.get_session(session_id)
         if not sess:
             raise RunError(404, "Session not found")
-        hist = self.db.history(session_id)
-        ids = [r["id"] for r in hist]
+        ids = self.db.timeline(session_id)
         if sess["current_run_id"] not in ids:
             raise RunError(409, "Nothing to undo" if step < 0 else "Nothing to redo")
         i = ids.index(sess["current_run_id"]) + step
@@ -183,8 +183,8 @@ class RunManager:
         self.db.set_current(session_id, ids[i], supersede_after=False)
         return ids[i]
 
-    def undo(self, session_id: str) -> str:
+    def undo(self, session_id: str) -> str | None:
         return self._move(session_id, -1)
 
-    def redo(self, session_id: str) -> str:
+    def redo(self, session_id: str) -> str | None:
         return self._move(session_id, +1)

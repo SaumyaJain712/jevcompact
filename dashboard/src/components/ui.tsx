@@ -25,6 +25,7 @@ const STATUS_COLOR: Record<string, string> = {
   Running: "navy",
   Failed: "red",
   Cancelled: "grey",
+  Original: "grey",
 };
 
 export function StatusChip({ status }: { status: RunStatus | null }) {
