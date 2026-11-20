@@ -65,9 +65,10 @@ class CompactionConfig(BaseModel):
     jev_model: str = "jev-latest"
     cf_account_id: str | None = Field(None, repr=False)
     cf_api_token: str | None = Field(None, repr=False)
-    # The spec default @cf/meta/llama-3.1-8b-instruct was deprecated by Cloudflare
-    # on 2026-05-30, so the default is the fp8 variant (see PROGRESS.md).
-    cf_model: str = "@cf/meta/llama-3.1-8b-instruct-fp8"
+    # Deviation from spec: @cf/meta/llama-3.1-8b-instruct was deprecated by
+    # Cloudflare on 2026-05-30 and its -fp8 variant on 2026-11-20, so the default
+    # is Cloudflare's recommended replacement (see PROGRESS.md).
+    cf_model: str = "@cf/zai-org/glm-4.7-flash"
 
     @model_validator(mode="after")
     def _apply_preset_and_validate(self) -> "CompactionConfig":

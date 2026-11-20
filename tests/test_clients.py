@@ -15,7 +15,9 @@ from jevcompact.summarizers import CachingSummarizer, SummarizerError, SummaryEn
 from jevcompact.summarizers.cloudflare import CloudflareSummarizer
 
 JEV = "https://api.typesafe.ai/v1"
-CF_URL = "https://api.cloudflare.com/client/v4/accounts/acc123/ai/run/@cf/meta/llama-3.1-8b-instruct-fp8"
+FP8 = "@cf/meta/llama-3.1-8b-instruct-fp8"
+CF_URL = f"https://api.cloudflare.com/client/v4/accounts/acc123/ai/run/{FP8}"
+GLM_URL = "https://api.cloudflare.com/client/v4/accounts/acc123/ai/run/@cf/zai-org/glm-4.7-flash"
 
 
 def noul_reply(request: httpx.Request, value=0.42):
@@ -128,7 +130,7 @@ def cf_ok(text="- `cat a.ts`: exports cartTotal", usage=None, chat=False):
 @respx.mock
 async def test_cloudflare_request_and_neurons():
     route = respx.post(CF_URL).mock(return_value=cf_ok())
-    s = CloudflareSummarizer("acc123", "cf-token")
+    s = CloudflareSummarizer("acc123", "cf-token", model=FP8)
     res = await s.summarize(SummaryRequest("fix bug", [SummaryEntry("cat a.ts", "export function cartTotal")]))
     req = route.calls[0].request
     assert req.headers["Authorization"] == "Bearer cf-token"
@@ -140,16 +142,28 @@ async def test_cloudflare_request_and_neurons():
 
 @respx.mock
 async def test_cloudflare_chat_completion_shape():
-    url = "https://api.cloudflare.com/client/v4/accounts/acc123/ai/run/@cf/zai-org/glm-4.7-flash"
-    respx.post(url).mock(return_value=cf_ok("- line", chat=True))
-    s = CloudflareSummarizer("acc123", "t", model="@cf/zai-org/glm-4.7-flash")
-    assert (await s.summarize(SummaryRequest("t", [SummaryEntry("h", "x")]))).text == "- line"
+    route = respx.post(GLM_URL).mock(return_value=cf_ok("<think>plan</think>\n- line", chat=True,
+                                                         usage={"prompt_tokens": 20_000, "completion_tokens": 1_500}))
+    s = CloudflareSummarizer("acc123", "t")  # default model
+    assert s.model == "@cf/zai-org/glm-4.7-flash" and s.context == 131_072
+    res = await s.summarize(SummaryRequest("t", [SummaryEntry("h", "x")]))
+    assert res.text == "- line"
+    body = json.loads(route.calls[0].request.content)
+    assert body["max_completion_tokens"] == 2048 and "max_tokens" not in body
+    assert res.neurons == pytest.approx(20_000 * 5_500 / 1e6 + 1_500 * 36_400 / 1e6, abs=0.01)  # 164.6
+
+
+@respx.mock
+async def test_cloudflare_empty_reasoning_only_reply_is_error():
+    respx.post(GLM_URL).mock(return_value=cf_ok("<think>long reasoning</think>", chat=True))
+    with pytest.raises(SummarizerError, match="empty summary"):
+        await CloudflareSummarizer("acc123", "t").summarize(SummaryRequest("t", [SummaryEntry("h", "x")]))
 
 
 @respx.mock
 async def test_cloudflare_splits_input_over_context():
     route = respx.post(CF_URL).mock(return_value=cf_ok())
-    s = CloudflareSummarizer("acc123", "t")  # 32k context
+    s = CloudflareSummarizer("acc123", "t", model=FP8)  # 32k context
     entries = [SummaryEntry(f"cat f{i}.ts", filler(4000, f"s{i}")) for i in range(16)]  # ~64k tokens
     res = await s.summarize(SummaryRequest("task", entries))
     assert route.call_count >= 3
@@ -165,7 +179,7 @@ async def test_cloudflare_splits_input_over_context():
 async def test_cloudflare_error_and_pipeline_keeps_pruned_session():
     respx.post(CF_URL).mock(return_value=httpx.Response(
         403, json={"success": False, "errors": [{"code": 10000, "message": "Authentication error"}]}))
-    s = CloudflareSummarizer("acc123", "t")
+    s = CloudflareSummarizer("acc123", "t", model=FP8)
     with pytest.raises(SummarizerError, match="Authentication error"):
         await s.summarize(SummaryRequest("t", [SummaryEntry("h", "x")]))
 
@@ -173,7 +187,7 @@ async def test_cloudflare_error_and_pipeline_keeps_pruned_session():
 @respx.mock
 async def test_cloudflare_cache_never_calls_twice():
     route = respx.post(CF_URL).mock(return_value=cf_ok())
-    s = CachingSummarizer(CloudflareSummarizer("acc123", "t"))
+    s = CachingSummarizer(CloudflareSummarizer("acc123", "t", model=FP8))
     req = SummaryRequest("t", [SummaryEntry("h", "x")])
     await s.summarize(req)
     second = await s.summarize(req)

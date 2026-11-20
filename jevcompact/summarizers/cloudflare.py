@@ -15,21 +15,28 @@ into parts that are summarized separately and concatenated.
 """
 from __future__ import annotations
 
+import re
+
 import httpx
 
 from ..tokens import count_tokens
 from .base import SummarizerError, SummaryEntry, SummaryRequest, SummaryResult
 
-# Context window (tokens) and neurons per million input / output tokens.
-# Sources: model pages + developers.cloudflare.com/workers-ai/platform/pricing/
-# (GLM neurons derived from its $ price at $0.011 per 1,000 neurons).
-MODELS: dict[str, dict[str, float]] = {
+# Per model: context window (tokens), neurons per million input / output tokens,
+# the output-length parameter name and its value.
+# Sources (read 2026-11-20): model pages + developers.cloudflare.com/workers-ai/platform/pricing/
+MODELS: dict[str, dict] = {
+    # Default. Reasoning model: its reasoning counts as output tokens, so it gets a
+    # larger output budget. `max_tokens` is deprecated for it in favour of
+    # `max_completion_tokens`.
+    "@cf/zai-org/glm-4.7-flash": {"context": 131_072, "in": 5_500, "out": 36_400,
+                                  "max_param": "max_completion_tokens", "max_out": 2_048},
     # Deprecated by Cloudflare on 2026-05-30 (changelog 2026-05-08); kept for old configs.
     "@cf/meta/llama-3.1-8b-instruct": {"context": 7_968, "in": 25_608, "out": 75_147},
     # Model page: planned deprecation 2026-11-20.
     "@cf/meta/llama-3.1-8b-instruct-fp8": {"context": 32_000, "in": 13_778, "out": 26_128},
-    "@cf/zai-org/glm-4.7-flash": {"context": 131_072, "in": 5_500, "out": 36_364},
 }
+DEFAULT_MODEL = "@cf/zai-org/glm-4.7-flash"
 DEFAULT_CONTEXT = 7_968  # conservative for models not in the table
 
 SYSTEM_PROMPT = (
@@ -44,17 +51,18 @@ SYSTEM_PROMPT = (
 class CloudflareSummarizer:
     name = "cloudflare"
 
-    def __init__(self, account_id: str, api_token: str, model: str = "@cf/meta/llama-3.1-8b-instruct-fp8",
-                 max_output_tokens: int = 512, timeout_s: float = 60.0, client: httpx.AsyncClient | None = None):
+    def __init__(self, account_id: str, api_token: str, model: str = DEFAULT_MODEL,
+                 max_output_tokens: int | None = None, timeout_s: float = 60.0, client: httpx.AsyncClient | None = None):
         if not account_id or not api_token:
             raise SummarizerError("CF_ACCOUNT_ID and CF_API_TOKEN must be set")
         self.account_id = account_id
         self._token = api_token
         self.model = model
-        self.max_output_tokens = max_output_tokens
+        spec = MODELS.get(model, {})
+        self.max_param = spec.get("max_param", "max_tokens")
+        self.max_output_tokens = max_output_tokens or int(spec.get("max_out", 512))
         self.timeout_s = timeout_s
         self._client = client
-        spec = MODELS.get(model, {})
         self.context = int(spec.get("context", DEFAULT_CONTEXT))
         self._neurons = (spec.get("in"), spec.get("out"))
 
@@ -101,7 +109,7 @@ class CloudflareSummarizer:
         return f"Task of the agent:\n{task[:2000]}\n\nEarlier steps to summarize:\n\n{body}"
 
     async def _run(self, client: httpx.AsyncClient, messages: list[dict]) -> tuple[str, int, int]:
-        body = {"messages": messages, "max_tokens": self.max_output_tokens, "temperature": 0.2}
+        body = {"messages": messages, self.max_param: self.max_output_tokens, "temperature": 0.2}
         try:
             resp = await client.post(self.url, json=body, headers={"Authorization": f"Bearer {self._token}"})
         except httpx.HTTPError as exc:
@@ -118,9 +126,12 @@ class CloudflareSummarizer:
             text = result["response"]
         else:
             try:
-                text = result["choices"][0]["message"]["content"]
+                text = result["choices"][0]["message"]["content"] or ""
             except (KeyError, IndexError, TypeError) as exc:
                 raise SummarizerError("Unexpected Cloudflare response shape") from exc
+        text = re.sub(r"(?s)<think>.*?</think>", "", text).strip()
+        if not text:
+            raise SummarizerError("Cloudflare returned an empty summary (output budget used up by reasoning?)")
         usage = result.get("usage") or {}
         return text, int(usage.get("prompt_tokens", 0)), int(usage.get("completion_tokens", 0))
 

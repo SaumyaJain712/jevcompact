@@ -48,7 +48,9 @@ Ticked only when the linked test passes. Phase in brackets.
 
 ## Design deviations
 - **Jev input clipped to 300 tokens per tool output** (`jev_item_max_tokens`, head + tail). Reason: cost. Sending full outputs of a 180k-token session costs ~$0.006 per compaction, over the $0.002 NFR; clipped it costs ~$0.0016. Phase (f) evaluates 300 / 1000 / unclipped for accuracy vs cost.
-- **Cloudflare default model changed** from `@cf/meta/llama-3.1-8b-instruct` (deprecated by Cloudflare on 2026-05-30, changelog 2026-05-08) to `@cf/meta/llama-3.1-8b-instruct-fp8`, as instructed. Note: the fp8 model page lists a planned deprecation on 2026-11-20 — awaiting decision on a replacement. Model stays configurable (`CF_MODEL`).
+- **Cloudflare default model changed** from the spec's `@cf/meta/llama-3.1-8b-instruct` to `@cf/zai-org/glm-4.7-flash` (decided 2026-11-20). Reason: both Llama 3.1 8B variants are deprecated — the base model on 2026-05-30 (Cloudflare changelog 2026-05-08) and `-fp8` on 2026-11-20 (its model page). GLM-4.7-flash is Cloudflare's recommended replacement, has a 131,072-token context, and is not marked for deprecation. Still configurable via `CF_MODEL`.
+  - GLM-4.7-flash is a reasoning model: we send `max_completion_tokens=2048` (its `max_tokens` is deprecated), strip `<think>` blocks, and treat an empty reply as a summarizer error (the pruned session is kept).
+  - Cost (pricing page): 5,500 neurons per M input tokens, 36,400 per M output tokens. Per summary: ~65 neurons for 5k input + 1k output (~155 summaries/day on the free 10,000 neurons), ~165 neurons for 20k + 1.5k (~60/day), ~735 neurons for a full 120k + 2k (~13/day). Real numbers will come from the live test.
 
 ## Notes / decisions
 - Python 3.11 venv created with uv (machine default is 3.10).
