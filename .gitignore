@@ -15,3 +15,4 @@ dist/
 dashboard/test-results/
 dashboard/playwright-report/
 *.tsbuildinfo
+.e2e-data/

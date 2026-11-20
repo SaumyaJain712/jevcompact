@@ -239,6 +239,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 .item.selected .item-head { background: var(--navy-tint); box-shadow: inset 4px 0 0 var(--navy); }
 .item-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-toggle { background: none; border: none; padding: 0; text-align: left; cursor: pointer; color: inherit; min-width: 0; }
 .item-title .mono { font-size: 13px; }
 .tokens { color: var(--grey); text-align: right; font-variant-numeric: tabular-nums; }
 .item-body { padding: 0 var(--s2) var(--s2) calc(64px + var(--s2) * 2); }

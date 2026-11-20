@@ -16,6 +16,7 @@ export default function ReviewPage() {
   const navigate = useNavigate();
   const [detail, setDetail] = useState<SessionDetail | null>(null);
   const [decisions, setDecisions] = useState<Decision[]>([]);
+  const [itemsLoaded, setItemsLoaded] = useState(false);
   const [selected, setSelected] = useState(0);
   const [open, setOpen] = useState<Set<number>>(new Set());
   const [keep, setKeep] = useState(0.5);
@@ -26,6 +27,7 @@ export default function ReviewPage() {
   const [showLog, setShowLog] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  const shownRun = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -38,12 +40,18 @@ export default function ReviewPage() {
         d = await api.session(id);
         setBusy(null);
       }
+      const cr = d.current_run;
+      // Sync the panel with the run only when the version changes, so edits made while data loads survive.
+      if (cr && cr.id !== shownRun.current) {
+        setKeep(cr.keep_threshold);
+        setDrop(cr.drop_threshold);
+        setPreset(cr.preset);
+      }
+      shownRun.current = cr?.id ?? null;
       setDetail(d);
-      if (d.current_run) {
-        setDecisions(await api.decisions(d.current_run.id));
-        setKeep(d.current_run.keep_threshold);
-        setDrop(d.current_run.drop_threshold);
-        setPreset(d.current_run.preset);
+      if (cr) {
+        setDecisions(await api.decisions(cr.id));
+        setItemsLoaded(true);
       } else {
         // version 0: the original upload, nothing compacted
         const items = await api.items(id);
@@ -61,6 +69,7 @@ export default function ReviewPage() {
             created_at: "",
           })),
         );
+        setItemsLoaded(true);
       }
     } catch (e) {
       setError(e instanceof ApiError && e.status === 404 ? "This session no longer exists." : String(e));
@@ -248,26 +257,27 @@ export default function ReviewPage() {
               >
                 <div
                   className="item-head"
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={open.has(i)}
                   onClick={() => {
                     setSelected(i);
                     toggle(i);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggle(i);
-                    }
-                  }}
                 >
                   <RoleTag role={d.role} />
-                  <div className="item-title">
+                  <button
+                    type="button"
+                    className="item-title item-toggle"
+                    aria-expanded={open.has(i)}
+                    title={open.has(i) ? "Hide full output" : "Show full output"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelected(i);
+                      toggle(i);
+                    }}
+                  >
                     {d.role === "USER" ? d.title : <span className="mono">{d.title}</span>}
                     {d.summarized && !d.restored && <span className="tag"> · In summary</span>}
                     {d.restored && <span className="tag"> · Restored</span>}
-                  </div>
+                  </button>
                   <div className="tokens">{n(d.tokens)} tok</div>
                   <div>
                     {run ? (
@@ -301,7 +311,7 @@ export default function ReviewPage() {
                 )}
               </div>
             ))}
-            {decisions.length === 0 && <div className="empty">No items.</div>}
+            {decisions.length === 0 && <div className="empty">{itemsLoaded ? "No items." : "Loading items…"}</div>}
           </div>
           <p className="keys">
             <kbd>J</kbd>/<kbd>K</kbd> to move · <kbd>R</kbd> to restore · <kbd>U</kbd> to undo · click an item to

@@ -57,3 +57,14 @@ async def test_summary_cache_by_content_hash(tmp_path):
     assert inner.calls == 1 and not a.cached and b.cached and a.text == b.text
     cache2 = CachingSummarizer(MockSummarizer(), tmp_path)  # disk cache survives restarts
     assert (await cache2.summarize(req)).cached
+
+
+def test_mock_latency_env(monkeypatch):
+    from jevcompact.judges import build_judge
+
+    monkeypatch.setenv("MOCK_JUDGE_LATENCY_MS", "70,500")
+    assert build_judge(CompactionConfig()).latency_ms == (70.0, 500.0)
+    monkeypatch.setenv("MOCK_JUDGE_LATENCY_MS", "6000")
+    assert build_judge(CompactionConfig()).latency_ms == (6000.0, 6000.0)
+    monkeypatch.delenv("MOCK_JUDGE_LATENCY_MS")
+    assert build_judge(CompactionConfig()).latency_ms == (0.0, 0.0)

@@ -12,8 +12,8 @@ Ticked only when the linked test passes. Phase in brackets.
 - [x] FR7 Check summary lines, remove unsupported — `tests/test_fr06_fr07_summary.py` (a)
 - [x] FR8 Fall back on error / timeout / low savings — `tests/test_fr08_fallback.py` (a)
 - [x] FR9 Log every decision (item, score, action, time) — library `tests/test_fr09_fr11_fr12.py` (a); `decisions` table `tests/test_api.py::test_decisions_logged_in_db` (c)
-- [ ] FR10 Dashboard: sessions, scores, tokens before/after — API (c); four screens built (d); Playwright TC-10 pending (e)
-- [ ] FR11 Change thresholds, re-run, restore — library (a); API incl. restoring folded items `tests/test_api.py` (c); UI built (d); Playwright tests pending (e)
+- [x] FR10 Dashboard: sessions, scores, tokens before/after — API (c); screens (d); Playwright `dashboard/e2e/tc10-scores.spec.ts`, `sessions.spec.ts`, `review.spec.ts`, `compare.spec.ts` (e)
+- [x] FR11 Change thresholds, re-run, restore — library (a); API incl. folded items and version 0 `tests/test_api.py` (c); UI: re-run with preset, slider validation, R/U keys, Restore one, folded restore, Redo `dashboard/e2e/review.spec.ts` (e)
 - [x] FR12 Export JSON + savings report JSON/CSV — library + CLI (a); API `/export.json`, `/report.json`, `/report.csv` `tests/test_api.py::test_exports` (c)
 
 ## Non-functional requirements
@@ -23,7 +23,7 @@ Ticked only when the linked test passes. Phase in brackets.
 - [ ] Cost (real) from Jev-billed `usage.input_tokens` — `tests/test_live.py`, needs keys. Cloudflare cost reported as neurons.
 - [x] Reliability: automatic fallback + property test (200 generated sessions, 0 user messages lost) — `tests/test_nfr.py`
 - [ ] Accuracy ≥ 95% needed items kept (f)
-- [ ] Security: Fernet-encrypted at rest, masked in API responses, redacted from logs, server binds 127.0.0.1 — `tests/test_api.py::test_keys_encrypted_masked_never_returned` (c); UI masking pending (d)
+- [x] Security: Fernet-encrypted at rest, masked in API responses and UI, redacted from logs, server binds 127.0.0.1 — `tests/test_api.py::test_keys_encrypted_masked_never_returned` (c), `dashboard/e2e/settings.spec.ts` (e)
 - [x] Maintainability: Judge / Summarizer protocols, mocks swappable — `tests/test_nfr.py`
 - [ ] Portability: Windows / macOS / Linux, no GPU (g: README + scripts; only Linux tested so far)
 
@@ -32,17 +32,19 @@ Ticked only when the linked test passes. Phase in brackets.
 - [x] TC-04 50k tokens of candidates → 2 Jev requests
 - [x] TC-05 score 0.05 dropped and cached
 - [x] TC-08 Jev timeout → plain summary
-- [ ] TC-10 score shown for every item (Playwright, e)
+- [x] TC-10 score shown for every item — `dashboard/e2e/tc10-scores.spec.ts`
 - [x] TC-11 restored item returns verbatim
 - [x] TC-P1 P95 under 1 s
-- [x] Settings validation — library `tests/test_config.py` (a); API `tests/test_api.py::test_settings_validation` (c); UI pending (d, e)
+- [x] Settings validation — library `tests/test_config.py` (a); API `tests/test_api.py::test_settings_validation` (c); UI `dashboard/e2e/settings.spec.ts` (e)
+- [x] GUI style guide: exact colours, Inter 24/14, JetBrains Mono 13, all text ≥ 4.5:1, status words, one primary button top right, sidebar on every screen — `dashboard/e2e/layout.spec.ts`
+- [x] Error banners: Jev timeout (real 5 s timeout via slow mock server), upload error, items dropped — `review.spec.ts`, `sessions.spec.ts`
 
 ## Phases
 - [x] (a) Library core with mocks + tests
 - [x] (b) Cloudflare + Jev clients (mocked-HTTP tests pass; live tests skipped: no keys yet)
 - [x] (c) Database + FastAPI (live provider tests still pending keys)
 - [x] (d) React dashboard (typecheck + build pass; UI tests come in e)
-- [ ] (e) Playwright tests + screenshots
+- [x] (e) Playwright tests + screenshots (21 UI tests; `docs/screenshots/01–08`, preview data until phase f)
 - [ ] (f) Sample data + evaluation
 - [ ] (g) Docs and diagrams
 
@@ -53,6 +55,8 @@ Ticked only when the linked test passes. Phase in brackets.
   - Cost (pricing page): 5,500 neurons per M input tokens, 36,400 per M output tokens. Per summary: ~65 neurons for 5k input + 1k output (~155 summaries/day on the free 10,000 neurons), ~165 neurons for 20k + 1.5k (~60/day), ~735 neurons for a full 120k + 2k (~13/day). Real numbers will come from the live test.
 
 ## Notes / decisions
+- Phase (e): `npm run test:e2e` starts three local API servers (main; slow, where MockJudge takes 6 s so the 5 s Jev timeout and fallback really happen; clean one for screenshots) with fresh data in `.e2e-data/`. `npm run screenshots` writes `docs/screenshots/*.png` at 1440×900. Both use `data/samples/` once it exists, otherwise the generated preview sessions (`scripts/preview_sessions.py`), which is what the current screenshots show. `MOCK_JUDGE_LATENCY_MS` (e.g. `70,500`) sets MockJudge latency.
+- Bugs found by the UI tests and fixed: (1) threshold edits made while the review page was still loading were overwritten, so Re-run could send the old thresholds; (2) item rows were `role=button` containing the Restore button (nested interactive controls) — the title is now the expand button; (3) "No items." showed while a large session was still loading — now "Loading items…".
 - Dashboard (d): font sizes from the style guide (24 / 14 / 13 pt) are applied as CSS px, the usual meaning of "pt" in screen designs. Fonts are bundled with @fontsource, so the UI makes no external requests.
 - Review screen: the top-right primary button is **Compare** (Undo/Redo secondary); **Re-run** sits in the right panel as a secondary button, so each screen has one primary button.
 - Banners: the timeout banner uses the exact spec text; other fallback reasons (Jev error, low savings) show the reason followed by "We used the plain summary instead, so nothing was lost." The drop banner names the highest-scoring dropped item; The drop banner always shows Undo and Restore one. "View log" opens the decision log (time, item, score, action, reason) below the list.
