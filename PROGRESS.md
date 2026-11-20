@@ -12,8 +12,8 @@ Ticked only when the linked test passes. Phase in brackets.
 - [x] FR7 Check summary lines, remove unsupported — `tests/test_fr06_fr07_summary.py` (a)
 - [x] FR8 Fall back on error / timeout / low savings — `tests/test_fr08_fallback.py` (a)
 - [x] FR9 Log every decision (item, score, action, time) — library `tests/test_fr09_fr11_fr12.py` (a); `decisions` table `tests/test_api.py::test_decisions_logged_in_db` (c)
-- [ ] FR10 Dashboard: sessions, scores, tokens before/after — API data done and tested (`/api/sessions`, `/decisions`, `/compare`) (c); UI pending (d, e)
-- [ ] FR11 Change thresholds, re-run, restore — library (a); API re-run, cancel, restore, undo/redo tested `tests/test_api.py` (c); UI pending (d, e)
+- [ ] FR10 Dashboard: sessions, scores, tokens before/after — API (c); four screens built (d); Playwright TC-10 pending (e)
+- [ ] FR11 Change thresholds, re-run, restore — library (a); API incl. restoring folded items `tests/test_api.py` (c); UI built (d); Playwright tests pending (e)
 - [x] FR12 Export JSON + savings report JSON/CSV — library + CLI (a); API `/export.json`, `/report.json`, `/report.csv` `tests/test_api.py::test_exports` (c)
 
 ## Non-functional requirements
@@ -41,7 +41,7 @@ Ticked only when the linked test passes. Phase in brackets.
 - [x] (a) Library core with mocks + tests
 - [x] (b) Cloudflare + Jev clients (mocked-HTTP tests pass; live tests skipped: no keys yet)
 - [x] (c) Database + FastAPI (live provider tests still pending keys)
-- [ ] (d) React dashboard
+- [x] (d) React dashboard (typecheck + build pass; UI tests come in e)
 - [ ] (e) Playwright tests + screenshots
 - [ ] (f) Sample data + evaluation
 - [ ] (g) Docs and diagrams
@@ -53,6 +53,10 @@ Ticked only when the linked test passes. Phase in brackets.
   - Cost (pricing page): 5,500 neurons per M input tokens, 36,400 per M output tokens. Per summary: ~65 neurons for 5k input + 1k output (~155 summaries/day on the free 10,000 neurons), ~165 neurons for 20k + 1.5k (~60/day), ~735 neurons for a full 120k + 2k (~13/day). Real numbers will come from the live test.
 
 ## Notes / decisions
+- Dashboard (d): font sizes from the style guide (24 / 14 / 13 pt) are applied as CSS px, the usual meaning of "pt" in screen designs. Fonts are bundled with @fontsource, so the UI makes no external requests.
+- Review screen: the top-right primary button is **Compare** (Undo/Redo secondary); **Re-run** sits in the right panel as a secondary button, so each screen has one primary button.
+- Banners: the timeout banner uses the exact spec text; other fallback reasons (Jev error, low savings) show the reason followed by "We used the plain summary instead, so nothing was lost." The drop banner names the highest-scoring dropped item; "Undo" appears only when there is a previous version. "View log" opens the decision log (time, item, score, action, reason) below the list.
+- Restore buttons appear on dropped, cut and folded ("In summary") items.
 - Phase (c): uploading a session runs compaction automatically with the saved settings (FR2), so every session has a status. `?auto_run=false` skips it.
 - Every run (and every restore) is a new version in `runs`; the uploaded `messages` rows are never modified. Undo/redo moves the session's `current_run_id` along the version history; starting a new run after an undo discards the redo branch (marked `superseded`).
 - Restore works for every removed item ("anything removed can be put back in one click"): dropped/cut items get their full text back in place; items folded into the summary get their whole original turn (assistant tool call + tool results, a matching pair) re-inserted verbatim right after the summary message, in original order among restored turns. Each restore is a new version — `tests/test_api.py::test_restore_folded_item_reinserts_turn_after_summary` (OpenAI + Anthropic).

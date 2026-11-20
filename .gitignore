@@ -12,3 +12,5 @@ node_modules/
 dist/
 .hypothesis/
 *.egg-info/
+dashboard/test-results/
+dashboard/playwright-report/
