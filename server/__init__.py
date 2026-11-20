@@ -1,0 +1,1 @@
+"""JevCompact FastAPI server."""

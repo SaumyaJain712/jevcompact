@@ -1,0 +1,89 @@
+erDiagram
+    sessions {
+        text id PK
+        text name
+        text format
+        integer message_count
+        integer tokens_before
+        integer tokens_after
+        text status
+        text current_run_id
+        text created_at
+    }
+    messages {
+        text session_id PK,FK
+        integer index PK
+        text role
+        text content
+        integer tokens
+    }
+    runs {
+        text id PK
+        text session_id FK
+        integer seq
+        text kind
+        text parent_run_id FK
+        text preset
+        real keep_threshold
+        real drop_threshold
+        integer budget
+        text judge
+        text summarizer
+        real jev_cost_usd
+        integer jev_input_tokens
+        integer jev_requests
+        real neurons
+        real latency_ms
+        real scoring_latency_ms
+        integer tokens_before
+        integer tokens_after
+        integer user_messages_lost
+        text status
+        text fallback_reason
+        text error
+        integer superseded
+        text config_json
+        text output_json
+        text index_map_json
+        text created_at
+    }
+    decisions {
+        text run_id PK,FK
+        integer message_index
+        text item_id
+        integer item_index PK
+        integer block_index
+        text role
+        text title
+        real score
+        text action
+        text reason
+        integer tokens
+        integer tokens_after
+        integer summarized
+        integer restored
+        text created_at
+    }
+    recall_cache {
+        text item_id PK
+        text run_id FK
+        text full_content
+    }
+    summaries {
+        text run_id PK,FK
+        text text
+        integer lines_removed
+        text removed_lines_json
+        integer checked
+    }
+    settings {
+        text key PK
+        text value
+        integer encrypted
+    }
+    runs ||--o{ decisions : "run_id"
+    runs ||--o{ recall_cache : "run_id"
+    runs ||--o{ runs : "parent_run_id"
+    runs ||--o{ summaries : "run_id"
+    sessions ||--o{ messages : "session_id"
+    sessions ||--o{ runs : "session_id"

@@ -56,6 +56,16 @@ def cmd_compact(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+    except ImportError:
+        print("error: install the server extras: pip install 'jevcompact[server]'", file=sys.stderr)
+        return 1
+    uvicorn.run("server.app:get_app", factory=True, host=args.host, port=args.port, reload=args.reload)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="jevcompact", description="Session Compaction using Jev")
     sub = p.add_subparsers(dest="command", required=True)
@@ -69,6 +79,11 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--report", help="write the savings report as JSON")
     c.add_argument("--csv", help="write the savings report as CSV")
     c.set_defaults(func=cmd_compact)
+    s = sub.add_parser("serve", help="start the API server and dashboard")
+    s.add_argument("--host", default="127.0.0.1", help="default 127.0.0.1 so data stays on this machine")
+    s.add_argument("--port", type=int, default=8000)
+    s.add_argument("--reload", action="store_true")
+    s.set_defaults(func=cmd_serve)
     return p
 
 
