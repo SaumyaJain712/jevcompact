@@ -30,6 +30,7 @@ dev = [
   "respx>=0.21",
   "hypothesis>=6.100",
   "httpx2>=2.16",  # Starlette TestClient backend (silences its httpx deprecation warning)
+  "matplotlib>=3.9",  # eval charts
   "jevcompact[server]",
 ]
 

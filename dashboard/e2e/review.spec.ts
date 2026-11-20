@@ -83,7 +83,7 @@ test.describe("Session review screen", () => {
 
   test("items folded into the summary can be restored", async ({ page, request }) => {
     const s = await upload(request, "checkout-bugfix-0412", { as: "review-folded" });
-    await request.post(`${MAIN}/api/sessions/${s.id}/runs?wait=true`, { data: { budget: 20000 }, timeout: 60_000 });
+    await request.post(`${MAIN}/api/sessions/${s.id}/runs?wait=true`, { data: { budget: 5000 }, timeout: 60_000 });
     await page.goto(`/sessions/${s.id}`);
     const folded = page.getByTestId("item").filter({ hasText: "In summary" }).first();
     await expect(folded).toBeVisible();
