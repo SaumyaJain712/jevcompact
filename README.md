@@ -153,7 +153,25 @@ Full tables: [eval/results.md](eval/results.md). Charts: [docs/figures/](docs/fi
 [docs/report_assets/SUMMARY.md](docs/report_assets/SUMMARY.md).
 
 <!-- RESULTS:START -->
-(filled in from eval/results.md)
+Real run on 24 Nov 2026 (UTC). Five sample sessions over the 120k budget; default thresholds 0.50 / 0.10.
+Judge: **Cloudflare (Granite) judge, standing in for Jev**. Summarizer: Cloudflare GLM-4.7-flash.
+
+| Method | Tokens saved | Needed items kept | User messages lost | Cost per session |
+|---|---|---|---|---|
+| FIFO sliding window | 49.3% | 60.5% | 6 | free |
+| Plain summary only | 36.0% (45.0%¹) | 76.3% (70.0%¹) | 0 | ~416 neurons (520¹), 44–81 s |
+| Prune only (Cloudflare (Granite) judge, standing in for Jev) | 81.0% | 57.9% | 0 | ~8 neurons, 3–6 s |
+| JevCompact hybrid (Cloudflare (Granite) judge, standing in for Jev) | 81.0% | 57.9% | 0 | ~8 neurons, 3–6 s |
+
+¹ excluding api-refactor-long, where the GLM summary came back empty three times.
+
+- **Better:** JevCompact saves the most tokens, loses no user messages (FIFO lost 6), and costs a fraction of a summary.
+- **Worse:** it keeps fewer of the needed items than the baselines. The stand-in judge scores almost everything 0 or 1 and marks some needed outputs 0. So the 95% target is not met.
+  - Tuned thresholds equal the default: binary scores leave nothing to tune.
+  - Showing the judge whole outputs instead of 300 tokens made it worse (39.2% kept).
+- **Mock run** (separate): the hybrid kept 71.1% of needed items against 60.5% for FIFO and 63.2% for plain.
+
+![Needed items kept](docs/figures/needed_kept_real.png)
 <!-- RESULTS:END -->
 
 ## Tests

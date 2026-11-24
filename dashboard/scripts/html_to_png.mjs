@@ -9,6 +9,6 @@ for (const file of process.argv.slice(2)) {
   await page.goto(pathToFileURL(file).href);
   const box = await page.locator("body").boundingBox();
   await page.setViewportSize({ width: Math.max(1440, Math.ceil((box?.width ?? 1400) + 48)), height: 900 });
-  await page.screenshot({ path: file.replace(/\.html$/, ".png"), fullPage: true });
+  await page.locator("body").screenshot({ path: file.replace(/\.html$/, ".png") });
 }
 await browser.close();
