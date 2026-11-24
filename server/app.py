@@ -20,6 +20,7 @@ from pydantic import BaseModel, ValidationError
 
 import jevcompact
 from jevcompact.formats import UPLOAD_ERROR, FormatError, message_tokens, parse_session, text_of, validate_messages
+from jevcompact.judges.cloudflare import judge_label
 from jevcompact.judges.jev import JevJudge
 from jevcompact.report import CSV_COLUMNS
 from jevcompact.summarizers.cloudflare import CloudflareSummarizer
@@ -62,6 +63,13 @@ class CloudflareTestIn(BaseModel):
     account_id: str | None = None
     api_token: str | None = None
 
+
+
+def judge_display(judge: str, config: dict) -> str:
+    """The judge's name as shown in the UI and exports."""
+    if judge == "cloudflare":
+        return judge_label(config.get("cf_judge_model") or "@cf/ibm-granite/granite-4.0-h-micro")
+    return {"jev": "Jev", "mock": "Mock judge"}.get(judge, judge)
 
 def _err(status: int, message: str) -> JSONResponse:
     return JSONResponse({"detail": message}, status_code=status)
@@ -115,6 +123,7 @@ def create_app(db_path: str | Path | None = None, data_dir: str | Path | None = 
             return None
         out = {k: v for k, v in r.items() if k not in ("output_json", "index_map_json", "config_json")}
         out["config"] = json.loads(r["config_json"] or "{}")
+        out["judge_label"] = judge_display(r["judge"], out["config"])
         tb, ta = r.get("tokens_before"), r.get("tokens_after")
         out["percent_saved"] = round(100 * (tb - ta) / tb, 1) if tb and ta is not None else None
         decs = db.decisions(r["id"])
@@ -295,7 +304,7 @@ def create_app(db_path: str | Path | None = None, data_dir: str | Path | None = 
             ds = decs.get(i, [])
             if oi is None:
                 marker = "Summarized"
-            elif any(d["restored"] and d["summarized"] for d in ds):
+            elif any(d["restored"] for d in ds):  # restored in place or from the summary
                 marker = "Restored"
             elif any(d["action"] == "Dropped" for d in ds):
                 marker = "Dropped"
@@ -314,6 +323,8 @@ def create_app(db_path: str | Path | None = None, data_dir: str | Path | None = 
             "run_id": run_id, "session_id": sid, "status": r["status"],
             "tokens_before": r["tokens_before"], "tokens_after": r["tokens_after"],
             "jev_cost_usd": r["jev_cost_usd"], "latency_ms": r["latency_ms"], "neurons": r["neurons"],
+            "judge": r["judge"], "judge_neurons": r["judge_neurons"],
+            "judge_label": judge_display(r["judge"], json.loads(r["config_json"] or "{}")),
             "dropped": sum(1 for d in all_decs if d["action"] == "Dropped"),
             "truncated": sum(1 for d in all_decs if d["action"] == "Cut"),
             "user_messages_touched": r["user_messages_lost"], "rows": rows,

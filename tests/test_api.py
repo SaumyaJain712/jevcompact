@@ -173,6 +173,10 @@ def test_restore_returns_verbatim_and_undo_redo(client):
     assert after["action"] == "Kept" and after["restored"] and after["content_after"] == d["content"]
     exported = client.get(f"/api/runs/{new['id']}/export.json").json()
     assert d["content"] in [m.get("content") for m in exported]
+    # Compare marks an item restored in place as "Restored" (not unmarked, not "Dropped").
+    rows_c = client.get(f"/api/runs/{new['id']}/compare").json()["rows"]
+    row = next(r for r in rows_c if r["before"] and r["before"]["index"] == d["message_index"])
+    assert row["marker"] == "Restored"
 
     sess = client.get(f"/api/sessions/{s['id']}").json()
     assert sess["current_run_id"] == new["id"] and sess["can_undo"] and not sess["can_redo"]

@@ -42,6 +42,8 @@ export interface Run {
   jev_cost_usd: number;
   jev_input_tokens: number;
   neurons: number;
+  judge_neurons: number;
+  judge_label: string;
   latency_ms: number;
   scoring_latency_ms: number;
   tokens_before: number | null;
@@ -112,6 +114,9 @@ export interface Compare {
   jev_cost_usd: number;
   latency_ms: number;
   neurons: number;
+  judge: string;
+  judge_neurons: number;
+  judge_label: string;
   dropped: number;
   truncated: number;
   user_messages_touched: number;

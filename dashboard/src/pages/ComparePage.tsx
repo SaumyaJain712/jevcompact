@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, Compare, CompareCell, CompareRow, SessionDetail } from "../api";
-import { Banner, n, PageHeader, RoleTag, seconds, usd } from "../components/ui";
+import { Banner, judgeCost, n, PageHeader, RoleTag, seconds } from "../components/ui";
 
 const MARKER_COLOR: Record<NonNullable<CompareRow["marker"]>, string> = {
   Dropped: "red",
@@ -90,7 +90,7 @@ export default function ComparePage() {
       {cmp && (
         <>
           <div className="card summary-bar" data-testid="summary-bar">
-            <span>Jev cost {usd(cmp.jev_cost_usd)}</span>
+            <span>{judgeCost(cmp)}</span>
             <span className="sep">·</span>
             <span>{seconds(cmp.latency_ms)}</span>
             <span className="sep">·</span>

@@ -18,6 +18,15 @@ export function usd(v: number): string {
   return `$${v.toFixed(4)}`;
 }
 
+/** "Jev cost $0.0012", or for the free Cloudflare judge its label and neurons. */
+export function judgeCost(r: { judge: string; jev_cost_usd: number; judge_neurons?: number; judge_label?: string }): string {
+  if (r.judge === "cloudflare") {
+    const label = r.judge_label ?? "Cloudflare judge, standing in for Jev";
+    return label + " · " + Math.round(r.judge_neurons ?? 0).toLocaleString("en-US") + " neurons";
+  }
+  return "Jev cost " + usd(r.jev_cost_usd);
+}
+
 const STATUS_COLOR: Record<string, string> = {
   Compacted: "green",
   "Fell back": "amber",
@@ -35,7 +44,16 @@ export function StatusChip({ status }: { status: RunStatus | null }) {
 
 const ACTION_COLOR: Record<Action, string> = { Kept: "green", Cut: "amber", Dropped: "red", Pinned: "navy" };
 
-export function ActionChip({ action, score }: { action: Action; score: number | null }) {
+export function ActionChip({ action, score, restored = false }: { action: Action; score: number | null; restored?: boolean }) {
+  // A restored item is back verbatim; "Kept 0.02" would contradict its score, so it says Restored
+  // and keeps the judge's score in the tooltip.
+  if (restored) {
+    return (
+      <span className="chip green" data-testid="action-chip" title={score === null ? "Restored by you" : `Restored by you (judge score ${score.toFixed(2)})`}>
+        Restored
+      </span>
+    );
+  }
   const label = action === "Pinned" || score === null ? action : `${action} ${score.toFixed(2)}`;
   return (
     <span className={`chip ${ACTION_COLOR[action]}`} data-testid="action-chip">

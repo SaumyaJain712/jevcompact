@@ -36,7 +36,7 @@ test.describe("Session review screen", () => {
 
     await page.keyboard.press("r");
     await expect(items.nth(target)).toContainText("Restored");
-    await expect(items.nth(target).getByTestId("action-chip")).toHaveText(/^Kept/);
+    await expect(items.nth(target).getByTestId("action-chip")).toHaveText("Restored");
 
     await page.keyboard.press("u");
     await expect(items.nth(target).getByTestId("action-chip")).toHaveText(/^Dropped/);
@@ -57,7 +57,7 @@ test.describe("Session review screen", () => {
     await expect(banner).toHaveText(/\d+ items? dropped\. ".+" was among them\./);
     await expect(banner.getByRole("button", { name: "Undo" })).toBeVisible();
     await banner.getByRole("button", { name: "Restore one" }).click();
-    await expect(page.locator(".item .tag", { hasText: "Restored" })).toHaveCount(1);
+    await expect(page.getByTestId("action-chip").filter({ hasText: /^Restored$/ })).toHaveCount(1);
     await expect(page.getByRole("alert").filter({ hasText: "dropped" })).toHaveCount(0);
   });
 

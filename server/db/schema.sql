@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS runs (
     jev_cost_usd        REAL NOT NULL DEFAULT 0,
     jev_input_tokens    INTEGER NOT NULL DEFAULT 0,
     jev_requests        INTEGER NOT NULL DEFAULT 0,
-    neurons             REAL NOT NULL DEFAULT 0,
+    neurons             REAL NOT NULL DEFAULT 0,  -- Cloudflare summarizer
+    judge_neurons       REAL NOT NULL DEFAULT 0,  -- Cloudflare judge (stand-in for Jev); jev_cost_usd is 0 then
     latency_ms          REAL NOT NULL DEFAULT 0,
     scoring_latency_ms  REAL NOT NULL DEFAULT 0,
     tokens_before       INTEGER,

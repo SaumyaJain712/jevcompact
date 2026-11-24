@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, Decision, Preset, SessionDetail, waitForRun } from "../api";
-import { ActionChip, Banner, BannerAction, k, n, PageHeader, RoleTag, seconds, StatusChip, usd } from "../components/ui";
+import { ActionChip, Banner, BannerAction, judgeCost, k, n, PageHeader, RoleTag, seconds, StatusChip } from "../components/ui";
 
 const PRESETS: Record<Exclude<Preset, "custom">, [number, number]> = {
   conservative: [0.3, 0.05],
@@ -203,8 +203,8 @@ export default function ReviewPage() {
   const original = !run && detail.version === 0;
   const headline = run ? (
     <span className="headline" data-testid="headline">
-      {k(run.tokens_before)} → {k(run.tokens_after)} tokens ({Math.round(run.percent_saved ?? 0)}% smaller) · Jev cost{" "}
-      {usd(run.jev_cost_usd)} · {seconds(run.latency_ms)}
+      {k(run.tokens_before)} → {k(run.tokens_after)} tokens ({Math.round(run.percent_saved ?? 0)}% smaller) · {judgeCost(run)} ·{" "}
+      {seconds(run.latency_ms)}
     </span>
   ) : original ? (
     <span className="headline" data-testid="headline">
@@ -276,12 +276,11 @@ export default function ReviewPage() {
                   >
                     {d.role === "USER" ? d.title : <span className="mono">{d.title}</span>}
                     {d.summarized && !d.restored && <span className="tag"> · In summary</span>}
-                    {d.restored && <span className="tag"> · Restored</span>}
                   </button>
                   <div className="tokens">{n(d.tokens)} tok</div>
                   <div>
                     {run ? (
-                      <ActionChip action={d.action} score={d.score} />
+                      <ActionChip action={d.action} score={d.score} restored={d.restored} />
                     ) : (
                       <span className="chip grey" data-testid="action-chip">
                         Original

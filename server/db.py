@@ -26,6 +26,9 @@ class Database:
         with self.lock:
             self.conn.executescript(SCHEMA.read_text())
             self.conn.execute("PRAGMA foreign_keys = ON")
+            cols = {r[1] for r in self.conn.execute("PRAGMA table_info(runs)")}
+            if "judge_neurons" not in cols:  # databases created before the Cloudflare judge
+                self.conn.execute("ALTER TABLE runs ADD COLUMN judge_neurons REAL NOT NULL DEFAULT 0")
             if self.path != ":memory:":
                 self.conn.execute("PRAGMA journal_mode = WAL")
 
@@ -107,10 +110,10 @@ class Database:
     def save_result(self, run_id: str, r: CompactionResult) -> None:
         with self.lock, self.conn:
             self.conn.execute(
-                "UPDATE runs SET status=?, jev_cost_usd=?, jev_input_tokens=?, jev_requests=?, neurons=?, latency_ms=?, "
+                "UPDATE runs SET status=?, jev_cost_usd=?, jev_input_tokens=?, jev_requests=?, neurons=?, judge_neurons=?, latency_ms=?, "
                 "scoring_latency_ms=?, tokens_before=?, tokens_after=?, user_messages_lost=?, fallback_reason=?, "
                 "output_json=?, index_map_json=?, judge=?, summarizer=? WHERE id=?",
-                (r.status, r.jev_cost_usd, r.jev_input_tokens, r.jev_requests, r.summarizer_neurons, r.latency_ms,
+                (r.status, r.jev_cost_usd, r.jev_input_tokens, r.jev_requests, r.summarizer_neurons, r.judge_neurons, r.latency_ms,
                  r.scoring_latency_ms, r.tokens_before, r.tokens_after, r.user_messages_lost, r.fallback_reason,
                  json.dumps(r.messages, ensure_ascii=False), json.dumps(r.index_map), r.judge, r.summarizer, run_id))
             self.conn.executemany(
@@ -134,7 +137,7 @@ class Database:
 
     def list_runs(self, sid: str) -> list[dict]:
         cols = ("id, seq, kind, parent_run_id, preset, keep_threshold, drop_threshold, budget, judge, summarizer, "
-                "status, tokens_before, tokens_after, jev_cost_usd, latency_ms, superseded, created_at")
+                "status, tokens_before, tokens_after, jev_cost_usd, judge_neurons, latency_ms, superseded, created_at")
         return [dict(r) for r in self.q(f"SELECT {cols} FROM runs WHERE session_id = ? ORDER BY seq", (sid,))]
 
     def history(self, sid: str) -> list[dict]:
