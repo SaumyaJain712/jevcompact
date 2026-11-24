@@ -1,0 +1,11 @@
+{
+  "source": "real",
+  "summarizer": "cloudflare @cf/zai-org/glm-4.7-flash (real)",
+  "judge": "Cloudflare (Granite) judge, standing in for Jev (real, @cf/ibm-granite/granite-4.0-h-micro)",
+  "full_compaction_judge_neurons": 16.846,
+  "single_summary_ms": 10413.7,
+  "single_summary_neurons": 23.56,
+  "full_compaction_ms": 9677.8,
+  "full_compaction_status": "Compacted",
+  "full_compaction_neurons": 0.0
+}

@@ -69,6 +69,7 @@ class BatchOutcome:
     scores: dict[str, float] = field(default_factory=dict)
     requests: int = 0
     input_tokens: int = 0
+    neurons: float = 0.0
     latency_ms: float = 0.0
 
 
@@ -98,5 +99,6 @@ async def run_requests(judge: Judge, requests: list[JudgeRequest], limiter: Rate
         for q in req.questions:
             out.scores[q.id] = min(1.0, max(0.0, float(resp.scores[q.id])))
         out.input_tokens += resp.input_tokens or req.tokens
+        out.neurons += resp.neurons
     out.latency_ms = (time.perf_counter() - t0) * 1000
     return out

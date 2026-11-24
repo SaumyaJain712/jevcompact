@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from .batching import JudgeRequest, effective_cap, question_cost, run_requests
 from .config import CompactionConfig
-from .judges.base import SOURCE_QUESTION, Judge, Question
+from .judges.base import SOURCE_QUESTION, Judge, Question, request_cap, request_timeout
 from .ratelimit import RateLimiter
 from .tokens import clip_to_tokens, count_tokens
 
@@ -19,6 +19,7 @@ class CheckOutcome:
     line_scores: list[tuple[str, float | None]] = field(default_factory=list)
     requests: int = 0
     input_tokens: int = 0
+    neurons: float = 0.0
 
 
 def summary_lines(text: str) -> list[str]:
@@ -47,7 +48,7 @@ async def check_summary(summary: str, sources: list[tuple[str, str]], config: Co
     out = CheckOutcome()
     if not lines:
         return out
-    cap = effective_cap(config.jev_max_request_tokens)
+    cap = effective_cap(request_cap(judge, config))
     questions = [Question(f"l{j}", "source", SOURCE_QUESTION.format(line=ln.strip()[:600]), ln)
                  for j, ln in enumerate(lines)]
     # Questions take at most a quarter of each request; sources fill the rest.
@@ -69,7 +70,7 @@ async def check_summary(summary: str, sources: list[tuple[str, str]], config: Co
         for ch in chunks:
             state = HEADER + ch
             requests.append(JudgeRequest(state, qs, count_tokens(state) + q_tokens))
-    res = await run_requests(judge, requests, limiter, config.jev_timeout_s)
+    res = await run_requests(judge, requests, limiter, request_timeout(judge, config))
 
     # A line is supported if any source chunk supports it (max over chunks).
     best: dict[str, float] = {}
@@ -80,5 +81,5 @@ async def check_summary(summary: str, sources: list[tuple[str, str]], config: Co
         s = best[q.id]
         out.line_scores.append((ln, s))
         (out.kept if s >= config.check_threshold else out.removed).append(ln)
-    out.requests, out.input_tokens = res.requests, res.input_tokens
+    out.requests, out.input_tokens, out.neurons = res.requests, res.input_tokens, res.neurons
     return out

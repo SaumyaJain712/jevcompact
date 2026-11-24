@@ -116,6 +116,7 @@ class CompactionResult:
     jev_input_tokens: int = 0
     jev_cost_usd: float = 0.0
     summarizer_neurons: float = 0.0
+    judge_neurons: float = 0.0  # Cloudflare judge cost; jev_cost_usd is 0 for it
     latency_ms: float = 0.0
     scoring_latency_ms: float = 0.0
     fallback_reason: str | None = None

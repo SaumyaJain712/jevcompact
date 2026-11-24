@@ -1,0 +1,32 @@
+{
+  "source": "real",
+  "judge": "Cloudflare (Granite) judge, standing in for Jev (real, @cf/ibm-granite/granite-4.0-h-micro)",
+  "summarizer": "mock (no summarizer time)",
+  "runs": 3,
+  "candidate_tokens": 32000,
+  "request_cap_tokens": 16000,
+  "max_scoring_ms": 21141.4,
+  "median_scoring_ms": 15514.4,
+  "scoring_ms": [
+    21141.4,
+    15514.4,
+    14413.9
+  ],
+  "prune_check_ms": [
+    29654.1,
+    23754.5,
+    22509.3
+  ],
+  "judge_requests": [
+    4,
+    4,
+    4
+  ],
+  "judge_neurons": [
+    80.427,
+    79.332,
+    78.784
+  ],
+  "jev_target_p95_ms": 1000,
+  "note": "3 runs only (free tier); P95 of 3 runs is the max."
+}

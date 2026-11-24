@@ -38,6 +38,7 @@ class _Run:
         self.limiter = RateLimiter(config.jev_requests_per_s, config.jev_tokens_per_s)
         self.jev_requests = 0
         self.jev_tokens = 0
+        self.judge_neurons = 0.0
         self.scoring_ms = 0.0
         self.warnings: list[str] = []
 
@@ -76,8 +77,11 @@ class _Run:
             tokens_before=s.tokens, tokens_after=tokens_after, decisions=decisions, summary=summary,
             judge=self.judge.name, summarizer=self.summarizer.name,
             jev_requests=self.jev_requests, jev_input_tokens=self.jev_tokens,
-            jev_cost_usd=round(self.jev_tokens * self.config.jev_price_per_m_input / 1e6, 6),
+            # The Cloudflare judge is billed in neurons, not Jev dollars.
+            jev_cost_usd=(0.0 if self.judge.name == "cloudflare"
+                          else round(self.jev_tokens * self.config.jev_price_per_m_input / 1e6, 6)),
             summarizer_neurons=summary.neurons if summary else 0.0,
+            judge_neurons=round(self.judge_neurons, 3),
             latency_ms=round((time.perf_counter() - self.t0) * 1000, 1),
             scoring_latency_ms=round(self.scoring_ms, 1), fallback_reason=fallback_reason,
             warnings=self.warnings, user_messages_lost=lost, index_map=index_map,
@@ -133,6 +137,7 @@ async def compact(messages: Any, config: CompactionConfig | None = None, *, judg
         return await run.fallback(str(exc))
     run.jev_requests += scored.requests
     run.jev_tokens += scored.input_tokens
+    run.judge_neurons += scored.neurons
     run.scoring_ms = scored.latency_ms
 
     decisions: list[Decision] = []
@@ -194,6 +199,7 @@ async def compact(messages: Any, config: CompactionConfig | None = None, *, judg
         return await run.fallback(f"Summary check failed: {exc}")
     run.jev_requests += chk.requests
     run.jev_tokens += chk.input_tokens
+    run.judge_neurons += chk.neurons
     summary = SummaryInfo(sres.text, chk.kept, chk.removed, chk.line_scores,
                           sum(len(g.msg_indices) for g in groups), sres.neurons, True, sres.cached)
     return run.finish("Compacted", decisions, replacements, {g.index for g in groups}, summary)

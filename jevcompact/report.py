@@ -35,6 +35,7 @@ def savings_report(result: CompactionResult) -> dict:
         "jev_input_tokens": result.jev_input_tokens,
         "jev_cost_usd": result.jev_cost_usd,
         "cloudflare_neurons": result.summarizer_neurons,
+        "judge_neurons": result.judge_neurons,
         "latency_ms": result.latency_ms,
         "fallback_reason": result.fallback_reason,
         "warnings": result.warnings,

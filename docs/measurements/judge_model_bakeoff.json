@@ -1,0 +1,163 @@
+{
+  "source": "real",
+  "probe": "held-out probe session (scripts/judge_bakeoff.py), not an evaluation sample; 48 keep questions (3 needed) in one 16k-token request plus one summary-check request with 4 lines (2 unsupported)",
+  "results": [
+    {
+      "label": "granite-4.0-h-micro (chosen)",
+      "model": "@cf/ibm-granite/granite-4.0-h-micro",
+      "session_ending": "Next I will change formatDue in src/utils/date.ts to format in the given time zone, then re-run the test.",
+      "repeats": 2,
+      "neurons_per_m_in": 1542,
+      "neurons_per_m_out": 10158,
+      "requests": 4,
+      "valid_first_try": 4,
+      "needed_retry": 0,
+      "failed_twice": 0,
+      "errors": [],
+      "neurons": 54.6,
+      "latency_ms": [
+        14375,
+        1624,
+        15871,
+        1766
+      ],
+      "keep_auc": [
+        0.867,
+        0.867
+      ],
+      "source_correct": 8,
+      "source_total": 8,
+      "mean_needed": [
+        1.0,
+        1.0
+      ],
+      "mean_not_needed": [
+        0.267,
+        0.267
+      ],
+      "valid_json_rate": 1.0,
+      "keep_requests_per_repeat": 1,
+      "keep_request_tokens": [
+        14719
+      ]
+    },
+    {
+      "label": "glm-4.7-flash, reasoning off",
+      "model": "@cf/zai-org/glm-4.7-flash:no-reasoning",
+      "session_ending": "Next I will change formatDue in src/utils/date.ts to format in the given time zone, then re-run the test.",
+      "repeats": 2,
+      "neurons_per_m_in": 5500,
+      "neurons_per_m_out": 36400,
+      "requests": 4,
+      "valid_first_try": 4,
+      "needed_retry": 0,
+      "failed_twice": 0,
+      "errors": [],
+      "neurons": 194.8,
+      "latency_ms": [
+        28734,
+        16845,
+        17437,
+        2771
+      ],
+      "keep_auc": [
+        0.5,
+        0.5
+      ],
+      "source_correct": 8,
+      "source_total": 8,
+      "mean_needed": [
+        0.0,
+        0.0
+      ],
+      "mean_not_needed": [
+        0.0,
+        0.0
+      ],
+      "valid_json_rate": 1.0,
+      "keep_requests_per_repeat": 1,
+      "keep_request_tokens": [
+        14719
+      ]
+    },
+    {
+      "label": "glm-4.7-flash, reasoning on",
+      "model": "@cf/zai-org/glm-4.7-flash",
+      "session_ending": "Next I will change formatDue in src/utils/date.ts to format in the given time zone, then re-run the test.",
+      "repeats": 2,
+      "neurons_per_m_in": 5500,
+      "neurons_per_m_out": 36400,
+      "requests": 4,
+      "valid_first_try": 1,
+      "needed_retry": 0,
+      "failed_twice": 3,
+      "errors": [
+        "Cloudflare judge didn't respond in 60 s",
+        "Cloudflare judge didn't respond in 60 s",
+        "Cloudflare judge didn't respond in 60 s"
+      ],
+      "neurons": 33.3,
+      "latency_ms": [
+        33870
+      ],
+      "keep_auc": [
+        NaN,
+        NaN
+      ],
+      "source_correct": 4,
+      "source_total": 4,
+      "mean_needed": [],
+      "mean_not_needed": [],
+      "valid_json_rate": 0.25,
+      "keep_requests_per_repeat": 1,
+      "keep_request_tokens": [
+        14719
+      ]
+    },
+    {
+      "label": "glm-4.7-flash, reasoning on, session already finished",
+      "model": "@cf/zai-org/glm-4.7-flash",
+      "session_ending": "Fixed: formatDue now formats the date in the account time zone with Intl.DateTimeFormat; the date test passes.",
+      "repeats": 1,
+      "neurons_per_m_in": 5500,
+      "neurons_per_m_out": 36400,
+      "requests": 2,
+      "valid_first_try": 1,
+      "needed_retry": 0,
+      "failed_twice": 1,
+      "errors": [
+        "Cloudflare judge didn't respond in 60 s"
+      ],
+      "neurons": 29.1,
+      "latency_ms": [
+        35718
+      ],
+      "keep_auc": [
+        NaN
+      ],
+      "source_correct": 4,
+      "source_total": 4,
+      "mean_needed": [],
+      "mean_not_needed": [],
+      "valid_json_rate": 0.5,
+      "keep_requests_per_repeat": 1,
+      "keep_request_tokens": [
+        14717
+      ]
+    }
+  ],
+  "not_tested": [
+    {
+      "model": "@cf/meta/llama-3.2-11b-vision-instruct",
+      "neurons_per_m_in": 4410,
+      "reason": "HTTP 403: the model's licence agreement must be accepted on the account first"
+    }
+  ],
+  "total_neurons": 311.8,
+  "notes": [
+    "Timeouts are the judge's 60 s HTTP timeout; timed-out calls were probably still billed, so they are counted in the eval's neuron ledger as an estimate (not in total_neurons).",
+    "Earlier single run of GLM-4.7-flash with reasoning on and a 120 s timeout on the same probe: valid JSON, 2 of 3 needed items found (1.0), 0 of 45 others above 0, 157.9 neurons.",
+    "Without the item title next to each question id, Granite and GLM (reasoning off) both answered 0 for all 48 items in earlier runs.",
+    "Choice: Granite 4.0 micro, the cheapest model that returned valid strict JSON on every request and separated needed from unneeded items (AUC 0.87, all 3 needed items at 1.0)."
+  ]
+}

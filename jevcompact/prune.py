@@ -7,7 +7,7 @@ from .batching import BatchOutcome, effective_cap, pack, question_cost, run_requ
 from .config import CompactionConfig
 from .formats import first_error_line
 from .summarize import assistant_text
-from .judges.base import KEEP_QUESTION, Judge, Question
+from .judges.base import KEEP_QUESTION, Judge, Question, request_cap, request_timeout
 from .models import Action, Item, Session
 from .ratelimit import RateLimiter
 from .tokens import clip_to_tokens, count_tokens
@@ -46,6 +46,7 @@ class ScoreOutcome:
     skipped: dict[int, str] = field(default_factory=dict)  # item index -> reason not scored
     requests: int = 0
     input_tokens: int = 0
+    neurons: float = 0.0
     latency_ms: float = 0.0
 
 
@@ -65,7 +66,7 @@ async def score_items(session: Session, config: CompactionConfig, judge: Judge,
         return out
 
     header = build_context(session, config)
-    cap = effective_cap(config.jev_max_request_tokens)
+    cap = effective_cap(request_cap(judge, config))
     n = max(1, len(tool_items) - 1)
     rank = {it.index: r for r, it in enumerate(tool_items)}
     later_titles: dict[int, bool] = {}
@@ -84,9 +85,10 @@ async def score_items(session: Session, config: CompactionConfig, judge: Judge,
         blocks.append((f"[{qid}] {it.title}\n{body}", q))
 
     requests = pack(header, blocks, cap)
-    res: BatchOutcome = await run_requests(judge, requests, limiter, config.jev_timeout_s)
+    res: BatchOutcome = await run_requests(judge, requests, limiter, request_timeout(judge, config))
     out.scores = {int(k[1:]): v for k, v in res.scores.items()}
     out.requests, out.input_tokens, out.latency_ms = res.requests, res.input_tokens, res.latency_ms
+    out.neurons = res.neurons
     return out
 
 

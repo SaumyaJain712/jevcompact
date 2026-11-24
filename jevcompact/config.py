@@ -58,7 +58,8 @@ class CompactionConfig(BaseModel):
     check_source_max_tokens: int = Field(12_000, ge=500)
 
     # Providers
-    judge: Literal["jev", "mock"] = "mock"
+    # "cloudflare" = CloudflareJudge, the free stand-in for Jev (see PROGRESS.md deviations).
+    judge: Literal["jev", "cloudflare", "mock"] = "mock"
     summarizer: Literal["cloudflare", "mock"] = "mock"
     jev_api_key: str | None = Field(None, repr=False)
     jev_base_url: str = "https://api.typesafe.ai/v1"
@@ -69,6 +70,10 @@ class CompactionConfig(BaseModel):
     # Cloudflare on 2026-05-30 and its -fp8 variant on 2026-11-20, so the default
     # is Cloudflare's recommended replacement (see PROGRESS.md).
     cf_model: str = "@cf/zai-org/glm-4.7-flash"
+    # Cloudflare judge (same account and token). Model chosen by the bake-off in
+    # docs/measurements/judge_model_bakeoff.json; smaller requests than Jev's 32k.
+    cf_judge_model: str = "@cf/ibm-granite/granite-4.0-h-micro"
+    cf_judge_max_request_tokens: int = Field(16_000, gt=1000)
 
     @model_validator(mode="after")
     def _apply_preset_and_validate(self) -> "CompactionConfig":
@@ -103,6 +108,8 @@ class CompactionConfig(BaseModel):
             values["jev_model"] = env["JEV_MODEL"]
         if env.get("CF_MODEL"):
             values["cf_model"] = env["CF_MODEL"]
+        if env.get("CF_JUDGE_MODEL"):
+            values["cf_judge_model"] = env["CF_JUDGE_MODEL"]
         values.update(overrides)
         return cls(**values)
 

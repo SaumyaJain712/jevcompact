@@ -11,6 +11,10 @@ def build_judge(config) -> Judge:
         from .jev import JevJudge  # added in phase (b)
 
         return JevJudge.from_config(config)
+    if config.judge == "cloudflare":
+        from .cloudflare import CloudflareJudge
+
+        return CloudflareJudge.from_config(config)
     return MockJudge(latency_ms=mock_latency_from_env())
 
 

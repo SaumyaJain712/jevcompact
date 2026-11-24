@@ -102,11 +102,14 @@ class SettingsStore:
         return self.public()
 
     def providers(self) -> tuple[str, str]:
-        """JUDGE / SUMMARIZER env vars win; otherwise use a real provider when its keys are saved."""
+        """JUDGE / SUMMARIZER env vars win; otherwise use a real provider when its keys are saved.
+
+        Judge: Jev when a Jev key is saved, else the free Cloudflare judge (standing in for Jev)
+        when Cloudflare keys are saved, else the mock."""
         has_jev = bool(self.secret("jev_api_key") or os.environ.get("JEV_API_KEY"))
         has_cf = bool((self.secret("cf_account_id") or os.environ.get("CF_ACCOUNT_ID"))
                       and (self.secret("cf_api_token") or os.environ.get("CF_API_TOKEN")))
-        judge = os.environ.get("JUDGE") or ("jev" if has_jev else "mock")
+        judge = os.environ.get("JUDGE") or ("jev" if has_jev else "cloudflare" if has_cf else "mock")
         summ = os.environ.get("SUMMARIZER") or ("cloudflare" if has_cf else "mock")
         return judge, summ
 

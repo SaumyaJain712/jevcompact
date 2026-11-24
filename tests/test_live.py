@@ -15,6 +15,7 @@ from test_nfr import MEASURE_DIR, session_with_candidate_tokens
 from jevcompact import CompactionConfig, MemoryRecallStore, MockJudge, MockSummarizer, compact
 from jevcompact.batching import effective_cap, pack
 from jevcompact.judges.base import KEEP_QUESTION, Question
+from jevcompact.judges.cloudflare import CloudflareJudge, judge_label
 from jevcompact.judges.jev import JevJudge
 from jevcompact.summarizers import SummaryEntry, SummaryRequest
 from jevcompact.summarizers.cloudflare import CloudflareSummarizer
@@ -44,6 +45,10 @@ def _jev():
 
 def _cf():
     return CloudflareSummarizer.from_config(CompactionConfig.from_env(summarizer="cloudflare"))
+
+
+def _cf_judge():
+    return CloudflareJudge.from_config(CompactionConfig.from_env(judge="cloudflare"))
 
 
 @needs_jev
@@ -103,12 +108,54 @@ async def test_live_cloudflare_summary_and_full_compaction_time():
     summarizer_ms = (time.perf_counter() - t) * 1000
     assert res.text.strip()
 
-    judge = _jev() if HAS_JEV else MockJudge()
+    judge = _jev() if HAS_JEV else _cf_judge()  # no paid Jev: the Cloudflare judge stands in for it
     msgs = build([Step(f"cat src/f{i}.ts", filler(600, f"f{i}")) for i in range(30)])
     full = await compact(msgs, CompactionConfig.from_env(budget=6_000), judge=judge, summarizer=cf,
                          recall_store=MemoryRecallStore())
     _write("summarizer_latency_real.json", {
-        "summarizer": f"cloudflare {cf.model} (real)", "judge": judge.name + (" (real)" if HAS_JEV else " (mock)"),
+        "summarizer": f"cloudflare {cf.model} (real)",
+        "judge": "jev (real)" if HAS_JEV else f"{judge_label(judge.model)} (real, {judge.model})",
+        "full_compaction_judge_neurons": full.judge_neurons,
         "single_summary_ms": round(summarizer_ms, 1), "single_summary_neurons": res.neurons,
         "full_compaction_ms": full.latency_ms, "full_compaction_status": full.status,
         "full_compaction_neurons": full.summarizer_neurons})
+
+
+# --- Cloudflare judge (free stand-in for Jev) ------------------------------------
+
+@needs_cf
+async def test_live_cloudflare_judge_strict_json():
+    j = _cf_judge()
+    res = await j.evaluate("TASK:\nFix the checkout total bug in src/cart.ts.\n\nOLDER TOOL OUTPUTS:\n"
+                           "[t1] npm test\nFAIL src/cart.test.ts\nTypeError: total is undefined (cart.ts:88)\n\n"
+                           "[t2] ls node_modules\n@babel  eslint  jest  react  typescript",
+                           [Question("t1", "keep", KEEP_QUESTION.format(qid="t1"), meta={"title": "npm test"}),
+                            Question("t2", "keep", KEEP_QUESTION.format(qid="t2"), meta={"title": "ls node_modules"})])
+    assert set(res.scores) == {"t1", "t2"} and all(0 <= v <= 1 for v in res.scores.values())
+    assert res.scores["t1"] >= res.scores["t2"]
+    assert res.neurons > 0
+
+
+@needs_cf
+async def test_live_tc_p1_and_neurons_cloudflare_judge():
+    """TC-P1 setup (32k tokens of candidates) with the Cloudflare judge. Recorded, not asserted against
+    the 1 s Jev target: an LLM on Workers AI is slower than Jev (see the report)."""
+    msgs = session_with_candidate_tokens(32_000)
+    j = _cf_judge()
+    scoring, total, neurons, requests = [], [], [], []
+    for _ in range(3):
+        res = await compact(msgs, CompactionConfig.from_env(judge="cloudflare", budget=8_000), judge=j,
+                            summarizer=MockSummarizer(), recall_store=MemoryRecallStore())
+        assert res.status in ("Compacted", "Fell back")
+        if res.status == "Fell back":  # recorded; the fallback path itself is what FR8 needs
+            assert res.user_messages_lost == 0
+        scoring.append(res.scoring_latency_ms)
+        total.append(res.latency_ms)
+        neurons.append(res.judge_neurons)
+        requests.append(res.jev_requests)
+    _write("tc_p1_latency_cf_judge_real.json", {
+        "judge": f"{judge_label(j.model)} (real, {j.model})", "summarizer": "mock (no summarizer time)",
+        "runs": len(scoring), "candidate_tokens": 32_000, "request_cap_tokens": j.max_request_tokens,
+        "max_scoring_ms": max(scoring), "median_scoring_ms": sorted(scoring)[len(scoring) // 2],
+        "scoring_ms": scoring, "prune_check_ms": total, "judge_requests": requests, "judge_neurons": neurons,
+        "jev_target_p95_ms": 1000, "note": "3 runs only (free tier); P95 of 3 runs is the max."})
