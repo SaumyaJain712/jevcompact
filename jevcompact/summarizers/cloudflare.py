@@ -30,7 +30,9 @@ MODELS: dict[str, dict] = {
     # larger output budget. `max_tokens` is deprecated for it in favour of
     # `max_completion_tokens`.
     "@cf/zai-org/glm-4.7-flash": {"context": 131_072, "in": 5_500, "out": 36_400,
-                                  "max_param": "max_completion_tokens", "max_out": 2_048},
+                                  "max_param": "max_completion_tokens", "max_out": 4_096},
+    # max_out was 2,048 until 2026-11-24: on the 57k/70k-token parts of the largest evaluation
+    # summary the reasoning used it all and the reply was empty.
     # Deprecated by Cloudflare on 2026-05-30 (changelog 2026-05-08); kept for old configs.
     "@cf/meta/llama-3.1-8b-instruct": {"context": 7_968, "in": 25_608, "out": 75_147},
     # Model page: planned deprecation 2026-11-20.
@@ -52,7 +54,7 @@ class CloudflareSummarizer:
     name = "cloudflare"
 
     def __init__(self, account_id: str, api_token: str, model: str = DEFAULT_MODEL,
-                 max_output_tokens: int | None = None, timeout_s: float = 60.0, client: httpx.AsyncClient | None = None):
+                 max_output_tokens: int | None = None, timeout_s: float = 180.0, client: httpx.AsyncClient | None = None):
         if not account_id or not api_token:
             raise SummarizerError("CF_ACCOUNT_ID and CF_API_TOKEN must be set")
         self.account_id = account_id
@@ -61,6 +63,7 @@ class CloudflareSummarizer:
         spec = MODELS.get(model, {})
         self.max_param = spec.get("max_param", "max_tokens")
         self.max_output_tokens = max_output_tokens or int(spec.get("max_out", 512))
+        # 180 s: GLM-4.7-flash took over 60 s on ~70k-token inputs in the evaluation (2026-11-24).
         self.timeout_s = timeout_s
         self._client = client
         self.context = int(spec.get("context", DEFAULT_CONTEXT))

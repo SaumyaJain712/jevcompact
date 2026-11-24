@@ -1,0 +1,31 @@
+flowchart LR
+    subgraph Client["Agent or user"]
+        A1["AI coding agent<br/>(OpenAI / Anthropic messages)"]
+        A2["Browser<br/>React dashboard"]
+    end
+    subgraph Lib["jevcompact library (Python 3.11)"]
+        P["Pipeline<br/>Pin → Prune → Summarize → Check → Fall back"]
+        B["Batching + rate limiter<br/>(16k-token judge requests)"]
+        R["Recall store<br/>(full text of anything removed)"]
+    end
+    subgraph Srv["FastAPI server (127.0.0.1)"]
+        API["REST API<br/>sessions · runs · decisions · exports · settings"]
+        DB[("SQLite<br/>sessions, messages, runs,<br/>decisions, summaries, recall")]
+        K["Fernet-encrypted keys"]
+    end
+    subgraph CF["Cloudflare Workers AI (free tier)"]
+        J["Judge: Granite 4.0 micro<br/>Cloudflare (Granite) judge,<br/>standing in for Jev"]
+        S["Summarizer: GLM-4.7-flash"]
+    end
+    JEV["Jev (TypeSafe)<br/>JUDGE=jev, paid — not used"]
+    A1 -- "compact(messages)" --> P
+    A2 -- HTTP --> API
+    API --> P
+    API <--> DB
+    API --- K
+    P --> B
+    B -- "yes/no questions → JSON scores" --> J
+    B -. "same questions (noul)" .-> JEV
+    P -- "oldest turns" --> S
+    P <--> R
+    R <--> DB

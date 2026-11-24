@@ -1,0 +1,76 @@
+{
+  "source": "real",
+  "note": "First-generation wall time per compaction, from the evaluation run logs (later rows reuse cached judge replies and summaries, so their latency is ~0). plain = one GLM summary (the two 60 s failures were before the summarizer timeout was raised to 180 s); prune_only = Granite judge scoring. Plain rows show the attempt with the 180 s timeout where one succeeded.",
+  "rows": [
+    {
+      "session": "api-refactor-long",
+      "method": "plain",
+      "latency_s": 193.7,
+      "result": "summarizer failed (empty reply, 3 attempts)",
+      "log": "run_real_full.log"
+    },
+    {
+      "session": "auth-session-expiry",
+      "method": "plain",
+      "latency_s": 52.8,
+      "result": "ok",
+      "log": "run_real_AC.log"
+    },
+    {
+      "session": "checkout-bugfix-0412",
+      "method": "plain",
+      "latency_s": 44.1,
+      "result": "ok",
+      "log": "run_real_AC.log"
+    },
+    {
+      "session": "data-pipeline-test",
+      "method": "plain",
+      "latency_s": 81.3,
+      "result": "ok",
+      "log": "run_real_AC2.log"
+    },
+    {
+      "session": "flaky-ci-timeout",
+      "method": "plain",
+      "latency_s": 62.9,
+      "result": "ok",
+      "log": "run_real_AC2.log"
+    },
+    {
+      "session": "api-refactor-long",
+      "method": "prune_only",
+      "latency_s": 4.8,
+      "result": "ok",
+      "log": "run_real_AC.log"
+    },
+    {
+      "session": "auth-session-expiry",
+      "method": "prune_only",
+      "latency_s": 4.8,
+      "result": "ok",
+      "log": "run_real_AC.log"
+    },
+    {
+      "session": "checkout-bugfix-0412",
+      "method": "prune_only",
+      "latency_s": 6.1,
+      "result": "ok",
+      "log": "run_real_AC.log"
+    },
+    {
+      "session": "data-pipeline-test",
+      "method": "prune_only",
+      "latency_s": 6.2,
+      "result": "ok",
+      "log": "run_real_AC.log"
+    },
+    {
+      "session": "flaky-ci-timeout",
+      "method": "prune_only",
+      "latency_s": 3.3,
+      "result": "ok",
+      "log": "run_real_AC.log"
+    }
+  ]
+}

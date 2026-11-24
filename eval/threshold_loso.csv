@@ -1,0 +1,6 @@
+mode,held_out,keep,drop,needed_kept_pct,tool_tokens_saved_pct,default_needed_kept_pct,default_tool_tokens_saved_pct
+real,api-refactor-long,0.5,0.1,62.5,97.4,62.5,97.4
+real,auth-session-expiry,0.5,0.1,37.5,99.7,37.5,99.7
+real,checkout-bugfix-0412,0.5,0.1,87.5,43.1,87.5,43.1
+real,data-pipeline-test,0.5,0.1,50.0,99.4,50.0,99.4
+real,flaky-ci-timeout,0.5,0.1,50.0,66.9,50.0,66.9

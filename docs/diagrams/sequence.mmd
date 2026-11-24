@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    participant U as Dashboard
+    participant API as FastAPI
+    participant P as Pipeline
+    participant J as Cloudflare judge (Granite)
+    participant S as Cloudflare summarizer (GLM)
+    participant DB as SQLite
+    U->>API: POST /api/sessions (upload JSON)
+    API->>DB: insert session + messages (version 0)
+    API->>P: compact(messages, settings)
+    P->>P: pin task, user messages, latest turn, errors
+    par one request per 16k tokens
+        P->>J: state + yes/no questions (temperature 0)
+        J-->>P: {"scores": {"t3": 0.0, "t7": 1.0, …}}
+    end
+    alt invalid JSON
+        P->>J: retry once
+        J-->>P: still invalid → JudgeError → plain-summary fallback
+    end
+    P->>P: keep / truncate / drop, store full text for recall
+    opt still over budget
+        P->>S: summarize oldest unpinned turns
+        S-->>P: bullet lines
+        P->>J: is each line supported by the tool outputs?
+        J-->>P: scores → unsupported lines removed
+    end
+    P-->>API: result (status, tokens, decisions, neurons)
+    API->>DB: insert run (version n) + decisions
+    U->>API: POST /runs/{id}/items/{item}/restore
+    API->>DB: new version with the item back verbatim ("Restored")

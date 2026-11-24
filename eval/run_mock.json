@@ -1,0 +1,31 @@
+{
+  "mode": "mock",
+  "judge": "mock",
+  "summarizer": "mock",
+  "date": "2026-11-25",
+  "duration_s": 8.2,
+  "budget": 120000,
+  "compaction_point": "before the agent's final answer (closing assistant message left out)",
+  "default_thresholds": [
+    0.5,
+    0.1
+  ],
+  "tuned_thresholds": [
+    0.05,
+    0.0
+  ],
+  "tuned_on": "all sessions' recorded prune-only scores (see threshold_loso for a held-out check)",
+  "clips": [
+    300,
+    1000,
+    "unclipped"
+  ],
+  "unclipped_dropped": false,
+  "tuned_run_skipped": false,
+  "tuned_sweep_estimate": {
+    "needed_kept_pct": 100.0,
+    "tool_tokens_saved_pct": 26.8
+  },
+  "summaries_generated": 3,
+  "neurons_spent_today": 0
+}

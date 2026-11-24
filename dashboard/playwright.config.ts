@@ -49,7 +49,8 @@ export default defineConfig({
     server(8790, "main"),
     // MockJudge sleeps 6 s here, past Jev's 5 s timeout, so runs genuinely fall back.
     server(8791, "slow", { MOCK_JUDGE_LATENCY_MS: "6000" }),
-    // Clean server used only by `npm run screenshots`.
-    server(8792, "shots"),
+    // Clean server used only by `npm run screenshots`. SHOTS_REAL=1 uses the real providers from .env:
+    // the Cloudflare judge (standing in for Jev) and the Cloudflare summarizer.
+    server(8792, "shots", process.env.SHOTS_REAL ? { JUDGE: "cloudflare", SUMMARIZER: "cloudflare" } : {}),
   ],
 });

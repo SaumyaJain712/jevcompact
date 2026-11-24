@@ -74,7 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("-o", "--output", required=True)
     c.add_argument("--preset", choices=sorted(PRESETS), default="balanced")
     c.add_argument("--budget", type=int)
-    c.add_argument("--judge", choices=["jev", "mock"])
+    c.add_argument("--judge", choices=["jev", "cloudflare", "mock"])
     c.add_argument("--summarizer", choices=["cloudflare", "mock"])
     c.add_argument("--report", help="write the savings report as JSON")
     c.add_argument("--csv", help="write the savings report as CSV")

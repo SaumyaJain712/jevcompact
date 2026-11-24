@@ -1,0 +1,19 @@
+mode,session,clip,status,needed_kept_pct,pct_saved,judge_requests,judge_input_tokens,jev_cost_usd,judge_neurons,scoring_latency_ms
+mock,api-refactor-long,300,Compacted,62.5,81.5,1,4986,0.000209,0.0,1.5
+mock,api-refactor-long,1000,Compacted,62.5,81.5,1,14455,0.000607,0.0,5.6
+mock,api-refactor-long,unclipped,Compacted,62.5,81.4,5,144222,0.006057,0.0,466.3
+mock,auth-session-expiry,300,Compacted,75.0,95.6,1,3199,0.000134,0.0,1.7
+mock,auth-session-expiry,1000,Compacted,75.0,95.6,1,8438,0.000354,0.0,3.9
+mock,auth-session-expiry,unclipped,Compacted,75.0,95.6,4,113068,0.004749,0.0,140.3
+mock,checkout-bugfix-0412,300,Compacted,62.5,89.9,1,4806,0.000202,0.0,1.3
+mock,checkout-bugfix-0412,1000,Compacted,62.5,89.9,1,13332,0.00056,0.0,8.1
+mock,checkout-bugfix-0412,unclipped,Compacted,62.5,89.9,7,154333,0.006482,0.0,561.1
+mock,data-pipeline-test,300,Compacted,75.0,86.7,1,3717,0.000156,0.0,1.1
+mock,data-pipeline-test,1000,Compacted,75.0,86.7,1,9432,0.000396,0.0,3.8
+mock,data-pipeline-test,unclipped,Compacted,75.0,86.7,4,87187,0.003662,0.0,24.5
+mock,docs-migration,300,Under budget,100.0,0.0,0,0,0.0,0.0,0.0
+mock,docs-migration,1000,Under budget,100.0,0.0,0,0,0.0,0.0,0.0
+mock,docs-migration,unclipped,Under budget,100.0,0.0,0,0,0.0,0.0,0.0
+mock,flaky-ci-timeout,300,Compacted,83.3,61.0,1,3032,0.000127,0.0,1.2
+mock,flaky-ci-timeout,1000,Compacted,83.3,61.0,1,8373,0.000352,0.0,3.3
+mock,flaky-ci-timeout,unclipped,Compacted,83.3,61.0,5,125168,0.005257,0.0,262.4

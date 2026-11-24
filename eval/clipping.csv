@@ -1,0 +1,19 @@
+mode,session,clip,status,needed_kept_pct,pct_saved,judge_requests,judge_input_tokens,jev_cost_usd,judge_neurons,scoring_latency_ms
+real,api-refactor-long,300,Compacted,62.5,97.1,1,5315,0.0,9.44,1.0
+real,api-refactor-long,1000,Compacted,62.5,97.1,1,14784,0.0,24.04,1.3
+real,api-refactor-long,unclipped,Compacted,37.5,95.6,11,128590,0.0,200.0,7477.2
+real,auth-session-expiry,300,Compacted,37.5,99.4,1,3480,0.0,6.33,0.8
+real,auth-session-expiry,1000,Compacted,37.5,79.8,1,8719,0.0,14.41,1.1
+real,auth-session-expiry,unclipped,Compacted,50.0,92.0,6,70987,0.0,110.67,8749.5
+real,checkout-bugfix-0412,300,Compacted,87.5,42.9,1,5103,0.0,9.19,1.5
+real,checkout-bugfix-0412,1000,Compacted,100.0,11.6,1,13629,0.0,22.33,1.5
+real,checkout-bugfix-0412,unclipped,Compacted,25.0,99.1,9,113008,0.0,176.01,13351.3
+real,data-pipeline-test,300,Compacted,50.0,99.1,1,4027,0.0,7.62,0.7
+real,data-pipeline-test,1000,Compacted,37.5,99.1,1,9742,0.0,16.43,1.1
+real,data-pipeline-test,unclipped,Compacted,50.0,97.4,6,59546,0.0,93.37,8322.9
+real,docs-migration,300,Under budget,100.0,0.0,0,0,0.0,0.0,0.0
+real,docs-migration,1000,Under budget,100.0,0.0,0,0,0.0,0.0,0.0
+real,docs-migration,unclipped,Under budget,100.0,0.0,0,0,0.0,0.0,0.0
+real,flaky-ci-timeout,300,Compacted,50.0,66.8,1,3294,0.0,5.97,0.6
+real,flaky-ci-timeout,1000,Compacted,50.0,66.7,1,8635,0.0,14.21,0.9
+real,flaky-ci-timeout,unclipped,Compacted,33.3,60.4,7,81087,0.0,126.23,10061.6

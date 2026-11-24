@@ -149,7 +149,7 @@ async def test_cloudflare_chat_completion_shape():
     res = await s.summarize(SummaryRequest("t", [SummaryEntry("h", "x")]))
     assert res.text == "- line"
     body = json.loads(route.calls[0].request.content)
-    assert body["max_completion_tokens"] == 2048 and "max_tokens" not in body
+    assert body["max_completion_tokens"] == 4096 and "max_tokens" not in body
     assert res.neurons == pytest.approx(20_000 * 5_500 / 1e6 + 1_500 * 36_400 / 1e6, abs=0.01)  # 164.6
 
 

@@ -260,7 +260,14 @@ class EvalSummarizer:
             if self.ledger.spent + est > self.ledger.limit:
                 raise BudgetExceeded(f"Summary needs ~{est:.0f} neurons; {self.ledger.spent:.0f} of "
                                      f"{self.ledger.limit:.0f} already spent today. Stopping before the free tier is exceeded.")
-        res = await self.inner.summarize(req)
+        try:
+            res = await self.inner.summarize(req)
+        except SummarizerError:
+            if self.ledger is not None:  # a timed-out call may still be billed: count the estimate
+                from jevcompact.summarizers.cloudflare import MODELS
+
+                self.ledger.add(estimate_neurons(req, MODELS.get(self.model, {"in": 25_608, "out": 75_147})))
+            raise
         self.calls += 1
         if self.ledger is not None:
             self.ledger.add(res.neurons)
@@ -328,6 +335,7 @@ class Row:
     judge: str
     summarizer: str
     fallback_reason: str = ""
+    warnings: str = ""
 
 
 # --- runs ---------------------------------------------------------------------------
@@ -407,7 +415,7 @@ async def run_method(sample: Sample, method: str, mode: str, make_judge, summ, j
                judge_neurons=round(res.judge_neurons, 2), cf_neurons=res.summarizer_neurons,
                judge_retries=getattr(judge, "retries", 0), summary_cached=bool(s and s.cached),
                judge="none" if not uses_judge else judge_label, summarizer="none" if method == "prune_only" else summ_label,
-               fallback_reason=res.fallback_reason or ""), res
+               fallback_reason=res.fallback_reason or "", warnings="; ".join(res.warnings)), res
 
 
 # --- threshold sweep ----------------------------------------------------------------
@@ -421,6 +429,23 @@ def _grid() -> list[tuple[float, float]]:
 PRESET_OF = {(0.3, 0.05): "conservative", (0.5, 0.1): "balanced", (0.7, 0.2): "aggressive"}
 
 
+_ITEMS: dict[str, list] = {}
+_TOKENS: dict[tuple, int] = {}
+
+
+def _items(sample: Sample) -> list:
+    if sample.name not in _ITEMS or len(_ITEMS[sample.name]) == 0:
+        _ITEMS[sample.name] = parse_session(sample.messages).items
+    return _ITEMS[sample.name]
+
+
+def _tokens(key: tuple, text_fn) -> int:
+    """Token count of a truncated / dropped replacement; the same for every grid point."""
+    if key not in _TOKENS:
+        _TOKENS[key] = count_tokens(text_fn())
+    return _TOKENS[key]
+
+
 def sweep_point(results: dict[str, object], samples: list[Sample], keep: float, drop: float) -> dict:
     """Re-classify recorded scores at (keep, drop): needed items kept verbatim and tool tokens saved."""
     cfg = CompactionConfig(keep_threshold=keep, drop_threshold=drop, preset="custom")
@@ -430,7 +455,7 @@ def sweep_point(results: dict[str, object], samples: list[Sample], keep: float, 
         if res is None:
             continue
         labels = sample.needed
-        items = parse_session(sample.messages).items
+        items = _items(sample)
         for d in res.decisions:
             it = items[d.item_index]
             if it.role not in ("TOOL", "ERROR"):
@@ -440,8 +465,8 @@ def sweep_point(results: dict[str, object], samples: list[Sample], keep: float, 
                 action, tok = "Kept", d.tokens
             else:
                 action = classify(d.score, cfg)
-                tok = (d.tokens if action == "Kept" else count_tokens(truncate(it.text, cfg, d.item_id))
-                       if action == "Cut" else count_tokens(drop_stub(it, d.score, d.item_id)))
+                tok = (d.tokens if action == "Kept" else _tokens(("cut", d.item_id), lambda: truncate(it.text, cfg, d.item_id))
+                       if action == "Cut" else _tokens(("drop", d.item_id), lambda: drop_stub(it, d.score, d.item_id)))
             after += tok
             if labels.get(it.tool_call_id):
                 needed += 1
@@ -623,7 +648,7 @@ async def main_async(args) -> None:
         write_csv(EVAL / f"threshold_sweep{suffix}.csv", sweep)
         write_csv(EVAL / f"threshold_loso{suffix}.csv", loso_rows(args.mode, scored, samples))
     # 3. Judge methods again with the tuned thresholds (prune replies come from the cache).
-    if tuned:
+    if tuned and not args.skip_tuned:
         for s in samples:
             for method in JUDGE_METHODS:
                 row, _ = await run_method(s, method, args.mode, make_judge, summ, jl, sl,
@@ -654,6 +679,9 @@ async def main_async(args) -> None:
             "tuned_on": "all sessions' recorded prune-only scores (see threshold_loso for a held-out check)",
             "clips": [c or "unclipped" for c in clips],
             "unclipped_dropped": bool(args.skip_unclipped),
+            "tuned_run_skipped": bool(args.skip_tuned),
+            "tuned_sweep_estimate": ({"needed_kept_pct": tuned["needed_kept_pct"],
+                                      "tool_tokens_saved_pct": tuned["tool_tokens_saved_pct"]} if tuned else None),
             "summaries_generated": summ.calls, "neurons_spent_today": round(ledger.spent, 1) if ledger else 0}
     (EVAL / f"run{suffix}.json").write_text(json.dumps(meta, indent=2))
     print(json.dumps(meta, indent=2))
@@ -672,6 +700,8 @@ def main() -> None:
     p.add_argument("--only", nargs="*", help="limit to these sessions")
     p.add_argument("--skip-clipping", action="store_true")
     p.add_argument("--skip-unclipped", action="store_true", help="clipping trade-off at 300 and 1000 only")
+    p.add_argument("--skip-tuned", action="store_true",
+                   help="compute tuned thresholds from the sweep but do not re-run the judge methods with them")
     p.add_argument("--neuron-limit", type=float, default=9_000, help="stop before spending more today (default 9,000)")
     args = p.parse_args()
     try:

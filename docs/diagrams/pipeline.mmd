@@ -1,0 +1,18 @@
+flowchart TD
+    IN["Session over the token budget (FR2)"] --> PIN["1. Pin<br/>task, user messages, latest turn, errors (FR3)"]
+    PIN --> SCORE["2. Prune: ask the judge for every older tool result<br/>'Is tool output [id] still needed to finish the task?' (FR4)"]
+    SCORE -- "judge error / timeout / invalid JSON twice" --> FB
+    SCORE --> CLS{"score vs thresholds (FR5)"}
+    CLS -- "≥ keep (0.50)" --> KEEP["Keep verbatim"]
+    CLS -- "between" --> CUT["Truncate (first lines + error line)"]
+    CLS -- "< drop (0.10)" --> DROP["Drop → one-line stub with recall id"]
+    KEEP & CUT & DROP --> LOW{"saved < 10% and still over budget?"}
+    LOW -- yes --> FB
+    LOW -- no --> OVER{"still over budget?"}
+    OVER -- no --> DONE["Compacted session + decision log (FR9)"]
+    OVER -- yes --> SUM["3. Summarize oldest unpinned turns (FR6)<br/>Cloudflare GLM-4.7-flash"]
+    SUM --> CHK["4. Check each summary line against the tool outputs (FR7)<br/>judge: 'Is this summary line supported…?'"]
+    CHK -- "judge failure" --> FB
+    CHK --> DONE
+    FB["5. Fall back (FR8): plain summary, pins respected,<br/>nothing lost"] --> DONE
+    DONE --> UI["Dashboard: review, restore, undo/redo, compare, export (FR10–FR12)"]
